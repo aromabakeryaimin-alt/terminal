@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能 ID 驗證與管理系統 - 終端機</title>
+    <style>
+        /* 與原版相同的樣式，包含 Modal 表格等 */
+        :root {
+            --bg-crust: #e2e8f0; --bg-mantle: #f8fafc; --bg-base: #ffffff;
+            --bg-surface: #f1f5f9; --text-main: #0f172a; --text-sub: #475569;
+            --accent-blue: #2563eb; --accent-green: #16a34a; --accent-red: #dc2626;
+            --accent-yellow: #d97706; --accent-orange: #ea580c; --accent-purple: #9333ea;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, sans-serif; }
+        body { background-color: var(--bg-mantle); color: var(--text-main); display: flex; flex-direction: column; min-height: 100vh; }
+        header { background-color: var(--bg-crust); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.08); position: sticky; top: 0; z-index: 100; }
+        header h1 { color: var(--accent-blue); font-size: 1.2rem; }
+        .btn-sm { padding: 6px 12px; font-size: 0.85rem; border-radius: 6px; border: none; cursor: pointer; }
+        .btn-warning { background-color: var(--accent-yellow); color: #ffffff; }
+        .btn-primary { background-color: var(--accent-blue); color: #ffffff; border:none; padding:12px; border-radius:8px; cursor:pointer;}
+        .btn-danger { background-color: var(--accent-red); color: #ffffff; border:none; padding:12px; border-radius:8px; cursor:pointer;}
+        .container { flex: 1; padding: 20px; max-width: 900px; margin: 0 auto; width: 100%; }
+        .card { background-color: var(--bg-base); border: 1px solid var(--bg-crust); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .card-title { color: var(--accent-blue); font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; }
+        .terminal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .info-grid { display: grid; grid-template-columns: 120px 1fr; gap: 12px; }
+        .info-label { color: var(--accent-blue); font-weight: bold; text-align: right; }
+        .info-value { color: var(--text-main); }
+        .status-banner { padding: 15px; font-size: 1.2rem; font-weight: bold; border-radius: 8px; text-align: center; background-color: var(--bg-surface); margin-bottom: 15px; }
+        
+        /* Modal 樣式 */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; backdrop-filter: blur(3px); z-index: 1000; padding: 15px; }
+        .modal-content { background-color: var(--bg-base); width: 100%; max-width: 850px; max-height: 90vh; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; }
+        .modal-header { background-color: var(--bg-crust); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; color: var(--accent-red); font-weight: bold; }
+        .tabs { display: flex; background-color: var(--bg-surface); overflow-x: auto; }
+        .tab-btn { flex: 1; padding: 12px 10px; background: none; border: none; color: var(--text-sub); font-size: 0.9rem; cursor: pointer; }
+        .tab-btn.active { color: #ffffff; background-color: var(--accent-blue); font-weight: bold; }
+        .tab-content { display: none; padding: 20px; flex: 1; overflow-y: auto; }
+        .tab-content.active { display: flex; flex-direction: column; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px; text-align: center; border-bottom: 1px solid var(--bg-surface); }
+        th { color: var(--accent-blue); background-color: var(--bg-crust); }
+        tr.selected { background-color: var(--bg-surface); }
+        .tag { padding: 3px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; }
+        .tag-pending { background-color: var(--accent-yellow); color: #ffffff; }
+        .tag-approved { background-color: var(--accent-green); color: #ffffff; }
+        .hint-text { text-align: center; margin-bottom: 15px; font-weight: bold; }
+        input, select { padding:8px; border:1px solid var(--bg-crust); border-radius:4px;}
+    </style>
+</head>
+<body>
+    <header>
+        <h1>💻 拍卡驗證終端機</h1>
+        <button class="btn-warning btn-sm" onclick="rebindAdminPrompt()">🔑 重置管理員卡</button>
+    </header>
+
+    <div class="container">
+        <div class="terminal-grid">
+            <div class="card">
+                <div class="card-title">👤 感應卡片資料</div>
+                <div class="info-grid">
+                    <div class="info-label">實體卡號:</div> <div class="info-value" id="val-cardId">--</div>
+                    <div class="info-label">智能卡編號:</div> <div class="info-value" id="val-smartCode">--</div>
+                    <div class="info-label">姓名:</div> <div class="info-value" id="val-name">--</div>
+                    <div class="info-label">性別:</div> <div class="info-value" id="val-gender">--</div>
+                    <div class="info-label">出生日期:</div> <div class="info-value" id="val-dob">--</div>
+                    <div class="info-label">地區:</div> <div class="info-value" id="val-region">--</div>
+                    <div class="info-label">有效狀態:</div> <div class="info-value" id="val-status">--</div>
+                </div>
+            </div>
+
+            <div class="card" style="display: flex; flex-direction: column; justify-content: center;">
+                <div class="status-banner" id="status-banner">請將 ID 卡片靠近感應區</div>
+                <div style="text-align: center; color: var(--text-sub);" id="status-detail">等待感應拍卡...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="admin-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>⚙️ 管理員後台控制中心</span>
+                <span style="font-size: 0.85rem; color: var(--text-sub);">(再次拍管理員卡即可退出)</span>
+            </div>
+            
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab(event, 'tab-requests')">📥 線上申請審核</button>
+                <button class="tab-btn" onclick="switchTab(event, 'tab-replace')">🔄 現場更換智能咭</button>
+                <button class="tab-btn" onclick="switchTab(event, 'tab-create')">➕ 現場開新咭</button>
+                <button class="tab-btn" onclick="switchTab(event, 'tab-list')">📋 人員名單/注銷</button>
+            </div>
+
+            <div id="tab-requests" class="tab-content active">
+                <div id="pending-hint" class="hint-text" style="color: var(--accent-yellow);">請點選下方待處理申請，然後拍空白 NFC 卡完成簽發</div>
+                <div style="flex: 1; overflow-y: auto; border: 1px solid var(--bg-crust); margin-bottom: 15px;">
+                    <table id="requests-table">
+                        <thead><tr><th>類型</th><th>姓名</th><th>生日</th><th>地區/備註</th><th>狀態</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tab-replace" class="tab-content">
+                <div id="replace-status" class="hint-text" style="color: var(--accent-yellow);">步驟 1：請拍下【舊卡】</div>
+                <div id="replace-info" style="text-align: center; color: var(--text-sub); margin-bottom: 20px;">等待讀取舊卡...</div>
+                <button class="btn-primary" style="align-self: center; width: 200px;" onclick="resetReplaceTab()">重新操作</button>
+            </div>
+
+            <div id="tab-create" class="tab-content">
+                <div id="create-status" class="hint-text" style="color: var(--accent-red);">必須先拍下【空卡】，才可以輸入下方資料</div>
+                <div id="create-card-lbl" style="text-align: center; color: var(--text-sub); font-size: 1.1rem; font-weight: bold; margin-bottom: 15px;">未讀取卡片</div>
+                
+                <div style="display: grid; grid-template-columns: 100px 1fr; gap: 10px; align-items: center; max-width: 500px; margin: 0 auto; width: 100%;">
+                    <label>姓名:</label> <input type="text" id="c-name" disabled>
+                    <label>出生日期:</label> <input type="date" id="c-dob" disabled>
+                    <label>地區:</label> <input type="text" id="c-region" disabled>
+                    <label>性別:</label>
+                    <select id="c-gender" disabled><option>男</option><option>女</option><option>其他</option></select>
+                </div>
+                <button id="btn-save-new" class="btn-primary" style="align-self: center; margin-top: 20px; width: 250px;" disabled onclick="saveNewIdentity()">儲存並簽發新咭</button>
+            </div>
+
+            <div id="tab-list" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <button class="btn-danger" style="width: auto;" onclick="requestCancel()">注銷所選戶口</button>
+                </div>
+                <div style="flex: 1; overflow-y: auto; border: 1px solid var(--bg-crust);">
+                    <table id="personnel-table">
+                        <thead><tr><th>實體卡號</th><th>智能編號</th><th>姓名</th><th>地區</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div id="cancel-status" class="hint-text" style="color: var(--accent-red); margin-top: 15px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyD42CHramMOT5yu6d0WhkMFs_5ZwQiPvPI",
+            authDomain: "ks11-a4274.firebaseapp.com",
+            databaseURL: "https://ks11-a4274-default-rtdb.firebaseio.com",
+            projectId: "ks11-a4274",
+            storageBucket: "ks11-a4274.firebasestorage.app",
+            messagingSenderId: "383409057129",
+            appId: "1:383409057129:web:3b5b6a389e523dddaee1f8"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        const DB = {
+            getAdmin: async () => (await database.ref('/settings/admin_card').once('value')).val(),
+            setAdmin: async (id) => await database.ref('/settings/admin_card').set(id),
+            resetAdmin: async () => await database.ref('/settings/admin_card').remove(),
+            getAllIdentities: async () => { const snap = await database.ref('/identities').once('value'); return snap.val() ? Object.values(snap.val()) : []; },
+            getIdentity: async (id) => (await database.ref(`/identities/${id}`).once('value')).val(),
+            saveIdentity: async (data) => await database.ref(`/identities/${data.card_id}`).set(data),
+            removeIdentity: async (id) => await database.ref(`/identities/${id}`).remove(),
+            getApplications: async () => { const snap = await database.ref('/applications').once('value'); return snap.val() ? Object.values(snap.val()) : []; },
+            updateAppStatus: async (appId, status) => await database.ref(`/applications/${appId}/status`).set(status)
+        };
+
+        const VALIDITY_MINUTES = 10;
+        let isAdminModalOpen = false;
+        let currentActiveTab = 'tab-requests';
+        let rfidBuffer = "";
+        let state = { selectedAppForIssue: null, replaceOldCard: null, createNewCard: null, pendingCancelCard: null, selectedTableRow: null };
+        const generateSmartCode = () => String.fromCharCode(65 + Math.floor(Math.random() * 26)) + Math.floor(1000 + Math.random() * 9000);
+
+        // 修復了 switchTab 函數，接收 e 參數
+        async function switchTab(e, tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            e.currentTarget.classList.add('active');
+            currentActiveTab = tabId;
+            resetAllAdminTabs();
+            if (tabId === 'tab-requests') await loadRequestsTable();
+            if (tabId === 'tab-list') await loadPersonnelTable();
+        }
+
+        async function rebindAdminPrompt() {
+            if (confirm("確定要【重新綁定管理員卡】嗎？")) {
+                await DB.resetAdmin();
+                alert("已重置管理員卡！請刷入新卡。");
+                if (isAdminModalOpen) closeAdminModal();
+            }
+        }
+
+        document.addEventListener('keydown', async (e) => {
+            if (e.key === 'Enter') {
+                const cardId = rfidBuffer.trim();
+                rfidBuffer = "";
+                if (cardId.length === 10 && !isNaN(cardId)) {
+                    await processSwipe(cardId);
+                } else if (cardId.length > 0) {
+                    alert(`⚠️ 刷卡格式無效: [${cardId}]`);
+                }
+            } else if (/^\d$/.test(e.key)) {
+                rfidBuffer += e.key;
+                if (rfidBuffer.length > 20) rfidBuffer = rfidBuffer.substring(rfidBuffer.length - 10);
+            } else { rfidBuffer = ""; }
+        });
+
+        async function processSwipe(cardId) {
+            try {
+                const adminCard = await DB.getAdmin();
+                if (!adminCard) {
+                    await DB.setAdmin(cardId);
+                    alert(`🎉 卡號 [${cardId}] 已設定為管理員卡。`);
+                    await openAdminModal();
+                    return;
+                }
+                if (cardId === adminCard) {
+                    if (isAdminModalOpen) closeAdminModal();
+                    else await openAdminModal();
+                    return;
+                }
+                if (isAdminModalOpen) await handleAdminSwipe(cardId);
+                else await handleMainSwipe(cardId);
+            } catch (err) { console.error("Firebase 連線錯誤:", err); }
+        }
+
+        async function handleMainSwipe(cardId) {
+            const record = await DB.getIdentity(cardId);
+            if (!record) {
+                updateMainDisplay(cardId, "--", "未知", "--", "--", "--", "未註冊", "var(--accent-red)", "#ffffff", "❌ 未註冊之卡片", "此 ID 卡未在系統中登記。");
+                return;
+            }
+            const diffSecs = Math.floor((new Date(new Date(record.issue_time).getTime() + VALIDITY_MINUTES * 60000) - new Date()) / 1000);
+            if (diffSecs > 0) {
+                updateMainDisplay(record.card_id, record.smart_code, record.name, record.gender, record.dob, record.region, `有效 (${Math.floor(diffSecs / 60)}分${diffSecs % 60}秒)`, "var(--accent-green)", "#ffffff", "✅ 通過：身份有效", `歡迎，${record.name}！`);
+            } else {
+                updateMainDisplay(record.card_id, record.smart_code, record.name, record.gender, record.dob, record.region, "已過期", "var(--accent-orange)", "#ffffff", "⚠️ 身份證已過期", `請進行換證。`);
+            }
+        }
+
+        function updateMainDisplay(id, sc, name, gender, dob, region, stat, bg, fg, msg, desc) {
+            document.getElementById('val-cardId').innerText = id; document.getElementById('val-smartCode').innerText = sc;
+            document.getElementById('val-name').innerText = name; document.getElementById('val-gender').innerText = gender;
+            document.getElementById('val-dob').innerText = dob; document.getElementById('val-region').innerText = region;
+            document.getElementById('val-status').innerText = stat;
+            const banner = document.getElementById('status-banner'); banner.style.backgroundColor = bg; banner.style.color = fg; banner.innerText = msg;
+            document.getElementById('status-detail').innerText = desc;
+        }
+
+        async function openAdminModal() { document.getElementById('admin-modal').style.display = 'flex'; isAdminModalOpen = true; resetAllAdminTabs(); await loadRequestsTable(); }
+        function closeAdminModal() { document.getElementById('admin-modal').style.display = 'none'; isAdminModalOpen = false; }
+
+        async function handleAdminSwipe(cardId) {
+            if (currentActiveTab === 'tab-requests') await processAppIssueSwipe(cardId);
+            else if (currentActiveTab === 'tab-replace') await processReplaceSwipe(cardId);
+            else if (currentActiveTab === 'tab-create') await processCreateSwipe(cardId);
+            else if (currentActiveTab === 'tab-list') await processCancelSwipe(cardId);
+        }
+
+        /* ----- 後台操作邏輯 ----- */
+        async function loadRequestsTable() {
+            const tbody = document.querySelector('#requests-table tbody'); tbody.innerHTML = '';
+            const apps = await DB.getApplications();
+            if (apps.length === 0) return tbody.innerHTML = '<tr><td colspan="5">無申請紀錄</td></tr>';
+            apps.forEach(a => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${a.type === 'NEW' ? '新證' : '換證'}</td><td><b>${a.name}</b></td><td>${a.dob || '--'}</td><td>${a.region || '--'}</td><td>${a.status === 'PENDING' ? '<span class="tag tag-pending">待審核</span>' : '<span class="tag tag-approved">已完成</span>'}</td>`;
+                tr.onclick = () => { if (a.status === 'APPROVED') return alert("已完成簽發！"); document.querySelectorAll('#requests-table tr').forEach(r => r.classList.remove('selected')); tr.classList.add('selected'); state.selectedAppForIssue = a; document.getElementById('pending-hint').innerText = `已選取「${a.name}」，請拍卡簽發！`; };
+                tbody.appendChild(tr);
+            });
+        }
+        
+        async function processAppIssueSwipe(cardId) {
+            if (!state.selectedAppForIssue) return alert("請先選取申請！");
+            const app = state.selectedAppForIssue;
+            let oldData = app.type === 'REPLACE' ? (await DB.getIdentity(app.oldCardId) || (await DB.getAllIdentities()).find(i => i.smart_code === app.oldCardId)) : null;
+            const smartCode = oldData ? oldData.smart_code : generateSmartCode();
+            if (oldData) await DB.removeIdentity(oldData.card_id);
+            await DB.saveIdentity({ card_id: cardId, smart_code: smartCode, name: app.name || (oldData?.name), dob: app.dob || (oldData?.dob), gender: app.gender || (oldData?.gender), region: app.region || (oldData?.region), issue_time: new Date().toISOString() });
+            await DB.updateAppStatus(app.id, 'APPROVED');
+            alert(`🎉 簽發成功！\n卡號 [${cardId}] 智能卡編號: ${smartCode}`);
+            state.selectedAppForIssue = null; await loadRequestsTable();
+        }
+
+        function resetReplaceTab() { state.replaceOldCard = null; document.getElementById('replace-status').innerText = "步驟 1：請拍下【舊卡】"; document.getElementById('replace-info').innerText = "等待讀取舊卡..."; }
+        async function processReplaceSwipe(cardId) {
+            if (!state.replaceOldCard) {
+                const record = await DB.getIdentity(cardId);
+                if (!record) return alert("錯誤：找不到舊卡資料！");
+                state.replaceOldCard = cardId; document.getElementById('replace-status').innerText = "步驟 2：請拍下【新空卡】完成更換"; document.getElementById('replace-info').innerText = `已鎖定舊戶口：${record.name}`;
+            } else {
+                if (cardId === state.replaceOldCard) return alert("新舊卡不能相同！");
+                if (await DB.getIdentity(cardId)) return alert("此卡已登記！");
+                const oldData = await DB.getIdentity(state.replaceOldCard);
+                await DB.removeIdentity(state.replaceOldCard);
+                await DB.saveIdentity({ ...oldData, card_id: cardId, issue_time: new Date().toISOString() });
+                alert(`更換成功！新卡: ${cardId}`); resetReplaceTab();
+            }
+        }
+
+        function resetCreateTab() { state.createNewCard = null; document.getElementById('create-status').innerText = "必須先拍下【空卡】"; document.getElementById('create-card-lbl').innerText = "未讀取卡片"; ['c-name', 'c-dob', 'c-region', 'c-gender'].forEach(id => { document.getElementById(id).value = ''; document.getElementById(id).disabled = true; }); document.getElementById('btn-save-new').disabled = true; }
+        async function processCreateSwipe(cardId) {
+            if (state.createNewCard) return;
+            if (await DB.getIdentity(cardId)) return alert("此卡片已註冊！");
+            state.createNewCard = cardId; document.getElementById('create-status').innerText = "✅ 空卡已鎖定"; document.getElementById('create-card-lbl').innerText = `卡號: ${cardId}`;
+            ['c-name', 'c-dob', 'c-region', 'c-gender'].forEach(id => document.getElementById(id).disabled = false); document.getElementById('btn-save-new').disabled = false;
+        }
+        async function saveNewIdentity() {
+            const name = document.getElementById('c-name').value.trim(), dob = document.getElementById('c-dob').value, region = document.getElementById('c-region').value.trim(), gender = document.getElementById('c-gender').value;
+            if (!name || !dob || !region) return alert("請填寫資料！");
+            const smartCode = generateSmartCode();
+            await DB.saveIdentity({ card_id: state.createNewCard, smart_code: smartCode, name, dob, region, gender, issue_time: new Date().toISOString() });
+            alert(`新咭發放成功！卡號: ${state.createNewCard}`); resetCreateTab();
+        }
+
+        function resetCancelTab() { state.pendingCancelCard = null; state.selectedTableRow = null; document.getElementById('cancel-status').innerText = ""; }
+        async function loadPersonnelTable() {
+            const tbody = document.querySelector('#personnel-table tbody'); tbody.innerHTML = '';
+            const records = await DB.getAllIdentities();
+            if (records.length === 0) return tbody.innerHTML = '<tr><td colspan="4">無紀錄</td></tr>';
+            records.forEach(rec => {
+                const tr = document.createElement('tr'); tr.innerHTML = `<td>${rec.card_id}</td><td>${rec.smart_code}</td><td>${rec.name}</td><td>${rec.region}</td>`;
+                tr.onclick = () => { document.querySelectorAll('#personnel-table tr').forEach(r => r.classList.remove('selected')); tr.classList.add('selected'); state.selectedTableRow = rec; };
+                tbody.appendChild(tr);
+            });
+        }
+        function requestCancel() { if (!state.selectedTableRow) return alert("請選取人員！"); state.pendingCancelCard = state.selectedTableRow.card_id; document.getElementById('cancel-status').innerText = `⚠️ 請拍下 [${state.pendingCancelCard}] 確認注銷！`; }
+        async function processCancelSwipe(cardId) { if (cardId === state.pendingCancelCard) { await DB.removeIdentity(cardId); alert("已注銷！"); resetCancelTab(); await loadPersonnelTable(); } else { alert("卡片不符！"); resetCancelTab(); } }
+
+        function resetAllAdminTabs() { resetReplaceTab(); resetCreateTab(); resetCancelTab(); }
+    </script>
+</body>
+</html>
