@@ -5,24 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CSIS 內部終端機 - 身份驗證與管理</title>
     <style>
-        /* 內部系統專業色盤 */
         :root {
-            --gov-primary: #003366;      /* 深藍色主調 */
-            --gov-secondary: #f4f6f8;    /* 淺灰底色 */
+            --gov-primary: #003366;
+            --gov-secondary: #f4f6f8;
             --gov-text-dark: #222222;
             --gov-text-muted: #555555;
             --gov-border: #c8d1d9;
-            --gov-action: #0066cc;       /* 系統操作藍 */
-            --gov-danger: #b30000;       /* 警示紅 */
-            --gov-success: #007a33;      /* 成功綠 */
-            --gov-warning: #d9822b;      /* 待辦橘 */
+            --gov-action: #0066cc;
+            --gov-danger: #b30000;
+            --gov-success: #007a33;
+            --gov-warning: #d9822b;
             --gov-bg: #e9ecef;
         }
         
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
         body { background-color: var(--gov-bg); color: var(--gov-text-dark); display: flex; flex-direction: column; min-height: 100vh; font-size: 14px; }
         
-        /* 頂部導航列 */
         header { background-color: var(--gov-primary); color: #ffffff; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
         header h1 { font-size: 1.1rem; font-weight: 600; letter-spacing: 0.5px; margin: 0; }
         
@@ -37,24 +35,20 @@
         
         .container { flex: 1; padding: 20px; max-width: 1000px; margin: 0 auto; width: 100%; }
         
-        /* 內部面板卡片 */
         .card { background-color: #ffffff; border: 1px solid var(--gov-border); border-radius: 4px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .card-title { color: var(--gov-primary); font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid var(--gov-secondary); padding-bottom: 8px; }
         .terminal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
         
-        /* 資料清單 */
         .info-grid { display: grid; grid-template-columns: 120px 1fr; gap: 10px; font-size: 0.95rem; }
         .info-label { color: var(--gov-text-muted); font-weight: 600; text-align: right; padding-right: 10px; }
         .info-value { color: var(--gov-text-dark); font-weight: 500; border-bottom: 1px solid var(--gov-secondary); padding-bottom: 4px; }
         
         .status-banner { padding: 20px; font-size: 1.25rem; font-weight: bold; border-radius: 4px; text-align: center; background-color: var(--gov-secondary); margin-bottom: 15px; border: 1px solid var(--gov-border); }
         
-        /* 後台 Modal */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,40,70,0.6); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 20px; }
         .modal-content { background-color: #ffffff; width: 100%; max-width: 900px; height: 85vh; border-radius: 4px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         .modal-header { background-color: #f8f9fa; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; color: var(--gov-primary); font-weight: bold; border-bottom: 1px solid var(--gov-border); font-size: 1.1rem; }
         
-        /* 內部系統分頁標籤 */
         .tabs { display: flex; background-color: var(--gov-secondary); border-bottom: 1px solid var(--gov-border); }
         .tab-btn { flex: 1; padding: 12px 10px; background: none; border: none; border-right: 1px solid var(--gov-border); color: var(--gov-text-muted); font-size: 0.95rem; cursor: pointer; font-weight: 500; transition: 0.1s; }
         .tab-btn:last-child { border-right: none; }
@@ -64,14 +58,13 @@
         .tab-content { display: none; padding: 20px; flex: 1; overflow-y: auto; background-color: #ffffff; }
         .tab-content.active { display: flex; flex-direction: column; }
         
-        /* 高密度資料表格 */
         table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
         th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid var(--gov-border); }
         th { color: var(--gov-text-muted); background-color: #f4f6f8; font-weight: 600; border-top: 1px solid var(--gov-border); border-bottom: 2px solid var(--gov-border); }
         tbody tr { cursor: pointer; transition: background-color 0.15s; }
         tbody tr:hover { background-color: #f9fafb; }
         tr.selected { background-color: #e6f0fa; border-left: 3px solid var(--gov-action); }
-        tr.selected td:first-child { padding-left: 7px; } /* 補償 border 寬度 */
+        tr.selected td:first-child { padding-left: 7px; }
         
         .tag { padding: 3px 8px; border-radius: 2px; font-size: 0.8rem; font-weight: bold; display: inline-block; }
         .tag-pending { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
@@ -80,10 +73,9 @@
         .hint-text { background-color: #f8f9fa; padding: 12px; border-left: 4px solid var(--gov-primary); font-weight: 600; margin-bottom: 15px; color: var(--gov-text-dark); font-size: 0.95rem; }
         .hint-warning { border-left-color: var(--gov-warning); background-color: #fffaf0; }
         
-        input, select { padding: 8px 10px; border: 1px solid #aaaaaa; border-radius: 3px; font-size: 0.95rem; width: 100%; background-color: #ffffff; }
+        input, select, textarea { padding: 8px 10px; border: 1px solid #aaaaaa; border-radius: 3px; font-size: 0.95rem; width: 100%; background-color: #ffffff; }
         input:disabled, select:disabled { background-color: #f5f5f5; color: #888888; }
         
-        /* 表單網格 */
         .form-grid { display: grid; grid-template-columns: 100px 1fr; gap: 15px 10px; align-items: center; max-width: 600px; margin: 0 auto; width: 100%; padding: 20px; background-color: var(--gov-secondary); border: 1px solid var(--gov-border); border-radius: 4px; }
         .form-grid label { text-align: right; font-weight: 600; color: var(--gov-text-muted); font-size: 0.9rem; }
     </style>
@@ -104,6 +96,7 @@
                     <div class="info-label">登記姓名:</div> <div class="info-value" id="val-name">--</div>
                     <div class="info-label">性別:</div> <div class="info-value" id="val-gender">--</div>
                     <div class="info-label">出生日期:</div> <div class="info-value" id="val-dob">--</div>
+                    <div class="info-label">電話號碼:</div> <div class="info-value" id="val-phone">--</div>
                     <div class="info-label">登記地區:</div> <div class="info-value" id="val-region">--</div>
                     <div class="info-label">系統狀態:</div> <div class="info-value" id="val-status">--</div>
                 </div>
@@ -128,15 +121,16 @@
                 <button class="tab-btn active" onclick="switchTab(event, 'tab-requests')">網上申請審核</button>
                 <button class="tab-btn" onclick="switchTab(event, 'tab-replace')">現場更換憑證</button>
                 <button class="tab-btn" onclick="switchTab(event, 'tab-create')">現場簽發新證</button>
+                <button class="tab-btn" onclick="switchTab(event, 'tab-broadcast')">系統廣播訊息</button>
                 <button class="tab-btn" onclick="switchTab(event, 'tab-list')">人員紀錄與注銷</button>
             </div>
 
             <!-- 分頁一：審核 -->
             <div id="tab-requests" class="tab-content active">
-                <div id="pending-hint" class="hint-text hint-warning">操作指引：請於列表點選待處理申請，然後將空白 NFC 憑證置於感應區進行簽發。</div>
+                <div id="pending-hint" class="hint-text hint-warning">操作指引：請於列表點選待處理申請，然後將空白 NFC 憑證置於感應區進行簽發。（完成審核之項目將於1分鐘後自動消失）</div>
                 <div style="flex: 1; overflow-y: auto; border: 1px solid var(--gov-border); margin-bottom: 15px; border-radius: 2px;">
                     <table id="requests-table">
-                        <thead><tr><th>申領類型</th><th>登記姓名</th><th>出生日期</th><th>地區 / 備註</th><th>處理狀態</th></tr></thead>
+                        <thead><tr><th>申領類型</th><th>登記姓名</th><th>出生日期</th><th>電話號碼</th><th>地區 / 備註</th><th>處理狀態</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -159,6 +153,7 @@
                 <div class="form-grid">
                     <label>登記姓名</label> <input type="text" id="c-name" disabled>
                     <label>出生日期</label> <input type="date" id="c-dob" disabled>
+                    <label>電話號碼</label> <input type="tel" id="c-phone" disabled>
                     <label>居住地區</label> <input type="text" id="c-region" disabled>
                     <label>性別</label>
                     <select id="c-gender" disabled><option>男</option><option>女</option></select>
@@ -168,7 +163,20 @@
                 </div>
             </div>
 
-            <!-- 分頁四：名單 -->
+            <!-- 分頁四：系統廣播訊息發送 -->
+            <div id="tab-broadcast" class="tab-content">
+                <div class="hint-text">廣播控制：在此處輸入的內容，將即時以紅底白字提示條發送並顯示在所有市民用戶頁面上方。</div>
+                <div style="max-width: 600px; margin: 20px auto; width: 100%;">
+                    <label style="font-weight: bold; margin-bottom: 8px; display: block;">推送提示訊息內容：</label>
+                    <textarea id="broadcast-msg-input" rows="4" placeholder="例如：系統將於今晚 23:00 進行例行維護更新，請留意..."></textarea>
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button class="btn-primary" style="flex: 1;" onclick="sendBroadcast()">發布廣播訊息</button>
+                        <button class="btn-danger" style="flex: 1;" onclick="clearBroadcast()">清除當前廣播</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 分頁五：名單 -->
             <div id="tab-list" class="tab-content">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <div style="font-weight: 600; color: var(--gov-primary);">系統已註冊人員紀錄</div>
@@ -176,7 +184,7 @@
                 </div>
                 <div style="flex: 1; overflow-y: auto; border: 1px solid var(--gov-border); border-radius: 2px;">
                     <table id="personnel-table">
-                        <thead><tr><th>實體憑證號碼</th><th>智能編號</th><th>登記姓名</th><th>居住地區</th></tr></thead>
+                        <thead><tr><th>實體憑證號碼</th><th>智能編號</th><th>登記姓名</th><th>電話號碼</th><th>居住地區</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -188,7 +196,6 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script>
-        // Firebase 原始設定保持不變[cite: 2]
         const firebaseConfig = {
             apiKey: "AIzaSyD42CHramMOT5yu6d0WhkMFs_5ZwQiPvPI",
             authDomain: "ks11-a4274.firebaseapp.com",
@@ -210,7 +217,11 @@
             saveIdentity: async (data) => await database.ref(`/identities/${data.card_id}`).set(data),
             removeIdentity: async (id) => await database.ref(`/identities/${id}`).remove(),
             getApplications: async () => { const snap = await database.ref('/applications').once('value'); return snap.val() ? Object.values(snap.val()) : []; },
-            updateAppStatus: async (appId, status) => await database.ref(`/applications/${appId}/status`).set(status)
+            updateAppStatus: async (appId, status, timestamp) => {
+                await database.ref(`/applications/${appId}`).update({ status: status, approved_at: timestamp });
+            },
+            setBroadcast: async (text) => await database.ref('/broadcast').set({ text: text, updated_at: Date.now() }),
+            clearBroadcast: async () => await database.ref('/broadcast').remove()
         };
 
         const VALIDITY_MINUTES = 10;
@@ -218,9 +229,10 @@
         let currentActiveTab = 'tab-requests';
         let rfidBuffer = "";
         let state = { selectedAppForIssue: null, replaceOldCard: null, createNewCard: null, pendingCancelCard: null, selectedTableRow: null };
+        let autoRefreshInterval = null;
+
         const generateSmartCode = () => String.fromCharCode(65 + Math.floor(Math.random() * 26)) + Math.floor(1000 + Math.random() * 9000);
 
-        // 修正分頁切換邏輯，支援 event 參數
         async function switchTab(e, tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -240,7 +252,6 @@
             }
         }
 
-        // 鍵盤/RFID 感應器監聽[cite: 2]
         document.addEventListener('keydown', async (e) => {
             if (e.key === 'Enter') {
                 const cardId = rfidBuffer.trim();
@@ -278,28 +289,47 @@
         async function handleMainSwipe(cardId) {
             const record = await DB.getIdentity(cardId);
             if (!record) {
-                updateMainDisplay(cardId, "--", "未知的憑證", "--", "--", "--", "未於系統註冊", "var(--gov-danger)", "#ffffff", "驗證失敗：未註冊", "此憑證未在資料庫中找到匹配紀錄。");
+                updateMainDisplay(cardId, "--", "未知的憑證", "--", "--", "--", "--", "未於系統註冊", "var(--gov-danger)", "#ffffff", "驗證失敗：未註冊", "此憑證未在資料庫中找到匹配紀錄。");
                 return;
             }
             const diffSecs = Math.floor((new Date(new Date(record.issue_time).getTime() + VALIDITY_MINUTES * 60000) - new Date()) / 1000);
             if (diffSecs > 0) {
-                updateMainDisplay(record.card_id, record.smart_code, record.name, record.gender, record.dob, record.region, `狀態有效 (剩餘 ${Math.floor(diffSecs / 60)}分${diffSecs % 60}秒)`, "var(--gov-success)", "#ffffff", "驗證通過：身份有效", `系統紀錄匹配，持證人：${record.name}`);
+                updateMainDisplay(record.card_id, record.smart_code, record.name, record.gender, record.dob, record.phone || "未提供", record.region, `狀態有效 (剩餘 ${Math.floor(diffSecs / 60)}分${diffSecs % 60}秒)`, "var(--gov-success)", "#ffffff", "驗證通過：身份有效", `系統紀錄匹配，持證人：${record.name}`);
             } else {
-                updateMainDisplay(record.card_id, record.smart_code, record.name, record.gender, record.dob, record.region, "憑證已過期", "var(--gov-warning)", "#ffffff", "警告：憑證已逾期", `請指導市民進行換證手續。`);
+                updateMainDisplay(record.card_id, record.smart_code, record.name, record.gender, record.dob, record.phone || "未提供", record.region, "憑證已過期", "var(--gov-warning)", "#ffffff", "警告：憑證已逾期", `請指導市民進行換證手續。`);
             }
         }
 
-        function updateMainDisplay(id, sc, name, gender, dob, region, stat, bg, fg, msg, desc) {
+        function updateMainDisplay(id, sc, name, gender, dob, phone, region, stat, bg, fg, msg, desc) {
             document.getElementById('val-cardId').innerText = id; document.getElementById('val-smartCode').innerText = sc;
             document.getElementById('val-name').innerText = name; document.getElementById('val-gender').innerText = gender;
-            document.getElementById('val-dob').innerText = dob; document.getElementById('val-region').innerText = region;
+            document.getElementById('val-dob').innerText = dob; document.getElementById('val-phone').innerText = phone;
+            document.getElementById('val-region').innerText = region;
             document.getElementById('val-status').innerText = stat;
             const banner = document.getElementById('status-banner'); banner.style.backgroundColor = bg; banner.style.color = fg; banner.innerText = msg;
             document.getElementById('status-detail').innerText = desc;
         }
 
-        async function openAdminModal() { document.getElementById('admin-modal').style.display = 'flex'; isAdminModalOpen = true; resetAllAdminTabs(); await loadRequestsTable(); }
-        function closeAdminModal() { document.getElementById('admin-modal').style.display = 'none'; isAdminModalOpen = false; }
+        async function openAdminModal() { 
+            document.getElementById('admin-modal').style.display = 'flex'; 
+            isAdminModalOpen = true; 
+            resetAllAdminTabs(); 
+            await loadRequestsTable();
+            // 自動定時刷新（每 5 秒），確保 completed 狀態超過 1 分鐘後自動自動隱藏
+            if (!autoRefreshInterval) {
+                autoRefreshInterval = setInterval(async () => {
+                    if (isAdminModalOpen && currentActiveTab === 'tab-requests') {
+                        await loadRequestsTable();
+                    }
+                }, 5000);
+            }
+        }
+
+        function closeAdminModal() { 
+            document.getElementById('admin-modal').style.display = 'none'; 
+            isAdminModalOpen = false;
+            if (autoRefreshInterval) { clearInterval(autoRefreshInterval); autoRefreshInterval = null; }
+        }
 
         async function handleAdminSwipe(cardId) {
             if (currentActiveTab === 'tab-requests') await processAppIssueSwipe(cardId);
@@ -310,12 +340,25 @@
 
         /* ----- 後台操作邏輯 ----- */
         async function loadRequestsTable() {
-            const tbody = document.querySelector('#requests-table tbody'); tbody.innerHTML = '';
+            const tbody = document.querySelector('#requests-table tbody'); 
             const apps = await DB.getApplications();
-            if (apps.length === 0) return tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#888;">目前無待處理申請</td></tr>';
-            apps.forEach(a => {
+            const now = Date.now();
+
+            // 過濾：待審核 (PENDING) 保留，已完成 (APPROVED) 超過 1 分鐘 (60000ms) 則自動刪除/隱藏
+            const visibleApps = apps.filter(a => {
+                if (a.status === 'APPROVED') {
+                    const approvedTime = a.approved_at || 0;
+                    return (now - approvedTime) < 60000;
+                }
+                return true;
+            });
+
+            tbody.innerHTML = '';
+            if (visibleApps.length === 0) return tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#888;">目前無待處理或有效時間內的申請</td></tr>';
+            
+            visibleApps.forEach(a => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td>${a.type === 'NEW' ? '首辦新證' : '換領憑證'}</td><td><strong>${a.name}</strong></td><td>${a.dob || '--'}</td><td>${a.region || '--'}</td><td>${a.status === 'PENDING' ? '<span class="tag tag-pending">等待簽發</span>' : '<span class="tag tag-approved">已完成</span>'}</td>`;
+                tr.innerHTML = `<td>${a.type === 'NEW' ? '首辦新證' : '換領憑證'}</td><td><strong>${a.name}</strong></td><td>${a.dob || '--'}</td><td>${a.phone || '--'}</td><td>${a.region || '--'}</td><td>${a.status === 'PENDING' ? '<span class="tag tag-pending">等待簽發</span>' : '<span class="tag tag-approved">已完成 (1分鐘後自動取消顯示)</span>'}</td>`;
                 tr.onclick = () => { 
                     if (a.status === 'APPROVED') return alert("此申請已完成處理。"); 
                     document.querySelectorAll('#requests-table tr').forEach(r => r.classList.remove('selected')); 
@@ -327,7 +370,6 @@
             });
         }
         
-        // 確保申請表中的 photo 屬性正確寫入資料庫
         async function processAppIssueSwipe(cardId) {
             if (!state.selectedAppForIssue) return alert("系統提示：請先自列表中選取一項申請。");
             const app = state.selectedAppForIssue;
@@ -342,12 +384,12 @@
                 name: app.name || (oldData?.name), 
                 dob: app.dob || (oldData?.dob), 
                 gender: app.gender || (oldData?.gender), 
+                phone: app.phone || (oldData?.phone) || "",
                 region: app.region || (oldData?.region),
-                photo: app.photo || (oldData?.photo) || "", 
                 issue_time: new Date().toISOString() 
             });
             
-            await DB.updateAppStatus(app.id, 'APPROVED');
+            await DB.updateAppStatus(app.id, 'APPROVED', Date.now());
             alert(`手續完成！\n實體憑證號碼: [${cardId}]\n智能編號: ${smartCode}`);
             state.selectedAppForIssue = null; 
             document.getElementById('pending-hint').innerText = "操作指引：請於列表點選待處理申請，然後將空白 NFC 憑證置於感應區進行簽發。";
@@ -374,7 +416,7 @@
             }
         }
 
-        function resetCreateTab() { state.createNewCard = null; document.getElementById('create-status').innerText = "安全性限制：必須先感應【全新空白憑證】，系統方可解鎖下方資料輸入區域。"; document.getElementById('create-card-lbl').innerText = "目前狀態：未讀取卡片"; ['c-name', 'c-dob', 'c-region', 'c-gender'].forEach(id => { document.getElementById(id).value = ''; document.getElementById(id).disabled = true; }); document.getElementById('btn-save-new').disabled = true; }
+        function resetCreateTab() { state.createNewCard = null; document.getElementById('create-status').innerText = "安全性限制：必須先感應【全新空白憑證】，系統方可解鎖下方資料輸入區域。"; document.getElementById('create-card-lbl').innerText = "目前狀態：未讀取卡片"; ['c-name', 'c-dob', 'c-phone', 'c-region', 'c-gender'].forEach(id => { document.getElementById(id).value = ''; document.getElementById(id).disabled = true; }); document.getElementById('btn-save-new').disabled = true; }
         
         async function processCreateSwipe(cardId) {
             if (state.createNewCard) return;
@@ -383,18 +425,32 @@
             document.getElementById('create-status').innerText = "系統許可：空白憑證已鎖定，請輸入資料"; 
             document.getElementById('create-status').style.borderLeftColor = "var(--gov-success)";
             document.getElementById('create-card-lbl').innerText = `已綁定憑證號碼: ${cardId}`;
-            ['c-name', 'c-dob', 'c-region', 'c-gender'].forEach(id => document.getElementById(id).disabled = false); 
+            ['c-name', 'c-dob', 'c-phone', 'c-region', 'c-gender'].forEach(id => document.getElementById(id).disabled = false); 
             document.getElementById('btn-save-new').disabled = false;
         }
         
         async function saveNewIdentity() {
-            const name = document.getElementById('c-name').value.trim(), dob = document.getElementById('c-dob').value, region = document.getElementById('c-region').value.trim(), gender = document.getElementById('c-gender').value;
-            if (!name || !dob || !region) return alert("請完整填寫所有欄位。");
+            const name = document.getElementById('c-name').value.trim(), dob = document.getElementById('c-dob').value, phone = document.getElementById('c-phone').value.trim(), region = document.getElementById('c-region').value.trim(), gender = document.getElementById('c-gender').value;
+            if (!name || !dob || !region || !phone) return alert("請完整填寫所有欄位。");
             const smartCode = generateSmartCode();
-            await DB.saveIdentity({ card_id: state.createNewCard, smart_code: smartCode, name, dob, region, gender, issue_time: new Date().toISOString() });
+            await DB.saveIdentity({ card_id: state.createNewCard, smart_code: smartCode, name, dob, phone, region, gender, issue_time: new Date().toISOString() });
             alert(`簽發手續完成！\n實體憑證號碼: ${state.createNewCard}\n智能編號: ${smartCode}`); 
             resetCreateTab();
             document.getElementById('create-status').style.borderLeftColor = "var(--gov-danger)";
+        }
+
+        // 發送全局廣播訊息
+        async function sendBroadcast() {
+            const text = document.getElementById('broadcast-msg-input').value.trim();
+            if (!text) return alert("請輸入廣播內容！");
+            await DB.setBroadcast(text);
+            alert("✅ 全局廣播已成功發送！");
+        }
+
+        async function clearBroadcast() {
+            await DB.clearBroadcast();
+            document.getElementById('broadcast-msg-input').value = "";
+            alert("✅ 全局廣播已清除。");
         }
 
         function resetCancelTab() { state.pendingCancelCard = null; state.selectedTableRow = null; const statusDiv = document.getElementById('cancel-status'); statusDiv.innerText = ""; statusDiv.style.display = "none"; }
@@ -402,9 +458,9 @@
         async function loadPersonnelTable() {
             const tbody = document.querySelector('#personnel-table tbody'); tbody.innerHTML = '';
             const records = await DB.getAllIdentities();
-            if (records.length === 0) return tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#888;">資料庫目前無紀錄</td></tr>';
+            if (records.length === 0) return tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#888;">資料庫目前無紀錄</td></tr>';
             records.forEach(rec => {
-                const tr = document.createElement('tr'); tr.innerHTML = `<td>${rec.card_id}</td><td>${rec.smart_code}</td><td><strong>${rec.name}</strong></td><td>${rec.region}</td>`;
+                const tr = document.createElement('tr'); tr.innerHTML = `<td>${rec.card_id}</td><td>${rec.smart_code}</td><td><strong>${rec.name}</strong></td><td>${rec.phone || '--'}</td><td>${rec.region}</td>`;
                 tr.onclick = () => { document.querySelectorAll('#personnel-table tr').forEach(r => r.classList.remove('selected')); tr.classList.add('selected'); state.selectedTableRow = rec; };
                 tbody.appendChild(tr);
             });
