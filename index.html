@@ -78,6 +78,32 @@
         
         .form-grid { display: grid; grid-template-columns: 100px 1fr; gap: 15px 10px; align-items: center; max-width: 600px; margin: 0 auto; width: 100%; padding: 20px; background-color: var(--gov-secondary); border: 1px solid var(--gov-border); border-radius: 4px; }
         .form-grid label { text-align: right; font-weight: 600; color: var(--gov-text-muted); font-size: 0.9rem; }
+
+        /* 自訂長方形提示框 UI */
+        .custom-modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 40, 70, 0.6);
+            display: none; justify-content: center; align-items: center; z-index: 10000;
+            padding: 20px;
+        }
+        .custom-modal-box {
+            background-color: #ffffff; border-radius: 4px; border: 1px solid var(--gov-border);
+            width: 100%; max-width: 450px; padding: 25px 20px; text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+        }
+        .custom-modal-text {
+            font-size: 1.05rem; color: #222222; margin-bottom: 25px; line-height: 1.6;
+            white-space: pre-wrap; font-weight: 500; text-align: left;
+        }
+        .custom-modal-actions { display: flex; gap: 10px; justify-content: center; }
+        .custom-modal-btn {
+            background-color: #003366; color: #ffffff; border: none;
+            padding: 11px 20px; border-radius: 3px; font-weight: 600;
+            cursor: pointer; font-size: 1rem; flex: 1; transition: background-color 0.2s;
+        }
+        .custom-modal-btn:hover { background-color: #002244; }
+        .custom-modal-btn.btn-cancel { background-color: #6c757d; }
+        .custom-modal-btn.btn-cancel:hover { background-color: #5a6268; }
     </style>
 </head>
 <body>
@@ -125,7 +151,6 @@
                 <button class="tab-btn" onclick="switchTab(event, 'tab-list')">人員紀錄與注銷</button>
             </div>
 
-            <!-- 分頁一：審核 -->
             <div id="tab-requests" class="tab-content active">
                 <div id="pending-hint" class="hint-text hint-warning">操作指引：請於列表點選待處理申請，然後將空白 NFC 憑證置於感應區進行簽發。（完成審核之項目將於1分鐘後自動消失）</div>
                 <div style="flex: 1; overflow-y: auto; border: 1px solid var(--gov-border); margin-bottom: 15px; border-radius: 2px;">
@@ -136,7 +161,6 @@
                 </div>
             </div>
 
-            <!-- 分頁二：換證 -->
             <div id="tab-replace" class="tab-content">
                 <div id="replace-status" class="hint-text hint-warning">步驟 1：請感應【原有舊憑證】以讀取資料</div>
                 <div id="replace-info" style="text-align: center; color: var(--gov-text-muted); margin: 30px 0; font-size: 1.1rem; font-weight: 500;">系統等待讀取舊憑證...</div>
@@ -145,7 +169,6 @@
                 </div>
             </div>
 
-            <!-- 分頁三：開新證 -->
             <div id="tab-create" class="tab-content">
                 <div id="create-status" class="hint-text" style="border-left-color: var(--gov-danger); background-color: #fdf3f2;">安全性限制：必須先感應【全新空白憑證】，系統方可解鎖下方資料輸入區域。</div>
                 <div id="create-card-lbl" style="text-align: center; color: var(--gov-text-muted); font-size: 1.1rem; font-weight: 600; margin-bottom: 20px;">目前狀態：未讀取卡片</div>
@@ -163,9 +186,8 @@
                 </div>
             </div>
 
-            <!-- 分頁四：系統廣播訊息發送 -->
             <div id="tab-broadcast" class="tab-content">
-                <div class="hint-text">廣播控制：在此處輸入的內容，將即時以紅底白字提示條發送並顯示在所有市民用戶頁面上方。</div>
+                <div class="hint-text">廣播控制：在此處輸入的內容，將即時以長方形提示框發送並彈出至所有市民用戶頁面。</div>
                 <div style="max-width: 600px; margin: 20px auto; width: 100%;">
                     <label style="font-weight: bold; margin-bottom: 8px; display: block;">推送提示訊息內容：</label>
                     <textarea id="broadcast-msg-input" rows="4" placeholder="例如：系統將於今晚 23:00 進行例行維護更新，請留意..."></textarea>
@@ -176,7 +198,6 @@
                 </div>
             </div>
 
-            <!-- 分頁五：名單 -->
             <div id="tab-list" class="tab-content">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <div style="font-weight: 600; color: var(--gov-primary);">系統已註冊人員紀錄</div>
@@ -189,6 +210,17 @@
                     </table>
                 </div>
                 <div id="cancel-status" class="hint-text" style="border-left-color: var(--gov-danger); background-color: #fdf3f2; margin-top: 15px; display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自訂提示框 (長方形區域，深藍色按鈕) -->
+    <div id="custom-alert-modal" class="custom-modal-overlay">
+        <div class="custom-modal-box">
+            <div id="custom-alert-text" class="custom-modal-text"></div>
+            <div class="custom-modal-actions">
+                <button id="custom-btn-confirm" class="custom-modal-btn" onclick="closeCustomModal(true)">確認</button>
+                <button id="custom-btn-cancel" class="custom-modal-btn btn-cancel" style="display:none;" onclick="closeCustomModal(false)">取消</button>
             </div>
         </div>
     </div>
@@ -230,8 +262,35 @@
         let rfidBuffer = "";
         let state = { selectedAppForIssue: null, replaceOldCard: null, createNewCard: null, pendingCancelCard: null, selectedTableRow: null };
         let autoRefreshInterval = null;
+        let modalCallback = null;
 
         const generateSmartCode = () => String.fromCharCode(65 + Math.floor(Math.random() * 26)) + Math.floor(1000 + Math.random() * 9000);
+
+        /* 自訂長方形提示框邏輯 */
+        function showCustomAlert(msg, onConfirm) {
+            document.getElementById('custom-alert-text').innerText = msg;
+            document.getElementById('custom-btn-cancel').style.display = 'none';
+            document.getElementById('custom-btn-confirm').innerText = '確認';
+            modalCallback = onConfirm || null;
+            document.getElementById('custom-alert-modal').style.display = 'flex';
+        }
+
+        function showCustomConfirm(msg, onConfirm) {
+            document.getElementById('custom-alert-text').innerText = msg;
+            document.getElementById('custom-btn-cancel').style.display = 'block';
+            document.getElementById('custom-btn-confirm').innerText = '確認';
+            modalCallback = onConfirm || null;
+            document.getElementById('custom-alert-modal').style.display = 'flex';
+        }
+
+        function closeCustomModal(isConfirmed) {
+            document.getElementById('custom-alert-modal').style.display = 'none';
+            if (modalCallback) {
+                const cb = modalCallback;
+                modalCallback = null;
+                cb(isConfirmed);
+            }
+        }
 
         async function switchTab(e, tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -244,12 +303,14 @@
             if (tabId === 'tab-list') await loadPersonnelTable();
         }
 
-        async function rebindAdminPrompt() {
-            if (confirm("警告：即將重置管理員權限。\n確定要【重新綁定管理員卡】嗎？")) {
-                await DB.resetAdmin();
-                alert("管理員權限已重置！請感應新憑證。");
-                if (isAdminModalOpen) closeAdminModal();
-            }
+        function rebindAdminPrompt() {
+            showCustomConfirm("警告：即將重置管理員權限。\n確定要【重新綁定管理員卡】嗎？", async (confirmed) => {
+                if (confirmed) {
+                    await DB.resetAdmin();
+                    showCustomAlert("管理員權限已重置！請感應新憑證。");
+                    if (isAdminModalOpen) closeAdminModal();
+                }
+            });
         }
 
         document.addEventListener('keydown', async (e) => {
@@ -259,7 +320,7 @@
                 if (cardId.length === 10 && !isNaN(cardId)) {
                     await processSwipe(cardId);
                 } else if (cardId.length > 0) {
-                    alert(`系統警告：感應資料格式無效 [${cardId}]`);
+                    showCustomAlert(`系統警告：感應資料格式無效 [${cardId}]`);
                 }
             } else if (/^\d$/.test(e.key)) {
                 rfidBuffer += e.key;
@@ -272,7 +333,7 @@
                 const adminCard = await DB.getAdmin();
                 if (!adminCard) {
                     await DB.setAdmin(cardId);
-                    alert(`設定成功：憑證 [${cardId}] 已登錄為管理員。`);
+                    showCustomAlert(`設定成功：憑證 [${cardId}] 已登錄為管理員。`);
                     await openAdminModal();
                     return;
                 }
@@ -315,7 +376,6 @@
             isAdminModalOpen = true; 
             resetAllAdminTabs(); 
             await loadRequestsTable();
-            // 自動定時刷新（每 5 秒），確保 completed 狀態超過 1 分鐘後自動自動隱藏
             if (!autoRefreshInterval) {
                 autoRefreshInterval = setInterval(async () => {
                     if (isAdminModalOpen && currentActiveTab === 'tab-requests') {
@@ -338,13 +398,11 @@
             else if (currentActiveTab === 'tab-list') await processCancelSwipe(cardId);
         }
 
-        /* ----- 後台操作邏輯 ----- */
         async function loadRequestsTable() {
             const tbody = document.querySelector('#requests-table tbody'); 
             const apps = await DB.getApplications();
             const now = Date.now();
 
-            // 過濾：待審核 (PENDING) 保留，已完成 (APPROVED) 超過 1 分鐘 (60000ms) 則自動刪除/隱藏
             const visibleApps = apps.filter(a => {
                 if (a.status === 'APPROVED') {
                     const approvedTime = a.approved_at || 0;
@@ -360,7 +418,7 @@
                 const tr = document.createElement('tr');
                 tr.innerHTML = `<td>${a.type === 'NEW' ? '首辦新證' : '換領憑證'}</td><td><strong>${a.name}</strong></td><td>${a.dob || '--'}</td><td>${a.phone || '--'}</td><td>${a.region || '--'}</td><td>${a.status === 'PENDING' ? '<span class="tag tag-pending">等待簽發</span>' : '<span class="tag tag-approved">已完成 (1分鐘後自動取消顯示)</span>'}</td>`;
                 tr.onclick = () => { 
-                    if (a.status === 'APPROVED') return alert("此申請已完成處理。"); 
+                    if (a.status === 'APPROVED') return showCustomAlert("此申請已完成處理。"); 
                     document.querySelectorAll('#requests-table tr').forEach(r => r.classList.remove('selected')); 
                     tr.classList.add('selected'); 
                     state.selectedAppForIssue = a; 
@@ -371,7 +429,7 @@
         }
         
         async function processAppIssueSwipe(cardId) {
-            if (!state.selectedAppForIssue) return alert("系統提示：請先自列表中選取一項申請。");
+            if (!state.selectedAppForIssue) return showCustomAlert("系統提示：請先自列表中選取一項申請。");
             const app = state.selectedAppForIssue;
             let oldData = app.type === 'REPLACE' ? (await DB.getIdentity(app.oldCardId) || (await DB.getAllIdentities()).find(i => i.smart_code === app.oldCardId)) : null;
             const smartCode = oldData ? oldData.smart_code : generateSmartCode();
@@ -390,7 +448,7 @@
             });
             
             await DB.updateAppStatus(app.id, 'APPROVED', Date.now());
-            alert(`手續完成！\n實體憑證號碼: [${cardId}]\n智能編號: ${smartCode}`);
+            showCustomAlert(`手續完成！\n實體憑證號碼: [${cardId}]\n智能編號: ${smartCode}`);
             state.selectedAppForIssue = null; 
             document.getElementById('pending-hint').innerText = "操作指引：請於列表點選待處理申請，然後將空白 NFC 憑證置於感應區進行簽發。";
             await loadRequestsTable();
@@ -401,17 +459,17 @@
         async function processReplaceSwipe(cardId) {
             if (!state.replaceOldCard) {
                 const record = await DB.getIdentity(cardId);
-                if (!record) return alert("系統錯誤：資料庫中未尋獲此憑證紀錄。");
+                if (!record) return showCustomAlert("系統錯誤：資料庫中未尋獲此憑證紀錄。");
                 state.replaceOldCard = cardId; 
                 document.getElementById('replace-status').innerText = "步驟 2：請感應【全新空白憑證】以移轉資料"; 
                 document.getElementById('replace-info').innerHTML = `舊戶口已鎖定：<strong>${record.name}</strong>`;
             } else {
-                if (cardId === state.replaceOldCard) return alert("操作無效：新舊憑證不可為同一張。");
-                if (await DB.getIdentity(cardId)) return alert("操作無效：感應之新卡已被註冊使用。");
+                if (cardId === state.replaceOldCard) return showCustomAlert("操作無效：新舊憑證不可為同一張。");
+                if (await DB.getIdentity(cardId)) return showCustomAlert("操作無效：感應之新卡已被註冊使用。");
                 const oldData = await DB.getIdentity(state.replaceOldCard);
                 await DB.removeIdentity(state.replaceOldCard);
                 await DB.saveIdentity({ ...oldData, card_id: cardId, issue_time: new Date().toISOString() });
-                alert(`換領手續完成！\n新憑證號碼: ${cardId}`); 
+                showCustomAlert(`換領手續完成！\n新憑證號碼: ${cardId}`); 
                 resetReplaceTab();
             }
         }
@@ -420,7 +478,7 @@
         
         async function processCreateSwipe(cardId) {
             if (state.createNewCard) return;
-            if (await DB.getIdentity(cardId)) return alert("系統錯誤：此憑證號碼已註冊。");
+            if (await DB.getIdentity(cardId)) return showCustomAlert("系統錯誤：此憑證號碼已註冊。");
             state.createNewCard = cardId; 
             document.getElementById('create-status').innerText = "系統許可：空白憑證已鎖定，請輸入資料"; 
             document.getElementById('create-status').style.borderLeftColor = "var(--gov-success)";
@@ -431,26 +489,25 @@
         
         async function saveNewIdentity() {
             const name = document.getElementById('c-name').value.trim(), dob = document.getElementById('c-dob').value, phone = document.getElementById('c-phone').value.trim(), region = document.getElementById('c-region').value.trim(), gender = document.getElementById('c-gender').value;
-            if (!name || !dob || !region || !phone) return alert("請完整填寫所有欄位。");
+            if (!name || !dob || !region || !phone) return showCustomAlert("請完整填寫所有欄位。");
             const smartCode = generateSmartCode();
             await DB.saveIdentity({ card_id: state.createNewCard, smart_code: smartCode, name, dob, phone, region, gender, issue_time: new Date().toISOString() });
-            alert(`簽發手續完成！\n實體憑證號碼: ${state.createNewCard}\n智能編號: ${smartCode}`); 
+            showCustomAlert(`簽發手續完成！\n實體憑證號碼: ${state.createNewCard}\n智能編號: ${smartCode}`); 
             resetCreateTab();
             document.getElementById('create-status').style.borderLeftColor = "var(--gov-danger)";
         }
 
-        // 發送全局廣播訊息
         async function sendBroadcast() {
             const text = document.getElementById('broadcast-msg-input').value.trim();
-            if (!text) return alert("請輸入廣播內容！");
+            if (!text) return showCustomAlert("請輸入廣播內容！");
             await DB.setBroadcast(text);
-            alert("✅ 全局廣播已成功發送！");
+            showCustomAlert("✅ 全局廣播已成功發送！");
         }
 
         async function clearBroadcast() {
             await DB.clearBroadcast();
             document.getElementById('broadcast-msg-input').value = "";
-            alert("✅ 全局廣播已清除。");
+            showCustomAlert("✅ 全局廣播已清除。");
         }
 
         function resetCancelTab() { state.pendingCancelCard = null; state.selectedTableRow = null; const statusDiv = document.getElementById('cancel-status'); statusDiv.innerText = ""; statusDiv.style.display = "none"; }
@@ -467,7 +524,7 @@
         }
         
         function requestCancel() { 
-            if (!state.selectedTableRow) return alert("系統提示：請自列表中選取欲注銷之人員。"); 
+            if (!state.selectedTableRow) return showCustomAlert("系統提示：請自列表中選取欲注銷之人員。"); 
             state.pendingCancelCard = state.selectedTableRow.card_id; 
             const statusDiv = document.getElementById('cancel-status');
             statusDiv.style.display = "block";
@@ -477,11 +534,11 @@
         async function processCancelSwipe(cardId) { 
             if (cardId === state.pendingCancelCard) { 
                 await DB.removeIdentity(cardId); 
-                alert("操作成功：該紀錄已自系統中注銷。"); 
+                showCustomAlert("操作成功：該紀錄已自系統中注銷。"); 
                 resetCancelTab(); 
                 await loadPersonnelTable(); 
             } else { 
-                alert("操作失敗：感應之憑證號碼與選取紀錄不符。"); 
+                showCustomAlert("操作失敗：感應之憑證號碼與選取紀錄不符。"); 
                 resetCancelTab(); 
             } 
         }
