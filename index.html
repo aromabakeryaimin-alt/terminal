@@ -25,8 +25,8 @@
         header h1 { font-size: 1.1rem; font-weight: 600; letter-spacing: 0.5px; margin: 0; }
         
         .btn-sm { padding: 6px 12px; font-size: 0.85rem; border-radius: 3px; border: 1px solid transparent; cursor: pointer; font-weight: 500; }
-        .btn-warning { background-color: transparent; color: #ffffff; border-color: #ffffff; transition: 0.2s; }
-        .btn-warning:hover { background-color: rgba(255,255,255,0.1); }
+        .btn-warning { background-color: #d9822b; color: #ffffff; border: none; transition: 0.2s; }
+        .btn-warning:hover { background-color: #b86d24; }
         .btn-primary { background-color: var(--gov-action); color: #ffffff; border: none; padding: 10px 16px; border-radius: 3px; cursor: pointer; font-weight: 600; transition: 0.2s;}
         .btn-primary:hover { background-color: #004c99; }
         .btn-primary:disabled { background-color: #cccccc; cursor: not-allowed; }
@@ -80,27 +80,11 @@
         .form-grid label { text-align: right; font-weight: 600; color: var(--gov-text-muted); font-size: 0.9rem; }
 
         /* 自訂長方形提示框 UI */
-        .custom-modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0, 40, 70, 0.6);
-            display: none; justify-content: center; align-items: center; z-index: 10000;
-            padding: 20px;
-        }
-        .custom-modal-box {
-            background-color: #ffffff; border-radius: 4px; border: 1px solid var(--gov-border);
-            width: 100%; max-width: 450px; padding: 25px 20px; text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-        }
-        .custom-modal-text {
-            font-size: 1.05rem; color: #222222; margin-bottom: 25px; line-height: 1.6;
-            white-space: pre-wrap; font-weight: 500; text-align: left;
-        }
+        .custom-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 40, 70, 0.6); display: none; justify-content: center; align-items: center; z-index: 10000; padding: 20px; }
+        .custom-modal-box { background-color: #ffffff; border-radius: 4px; border: 1px solid var(--gov-border); width: 100%; max-width: 450px; padding: 25px 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+        .custom-modal-text { font-size: 1.05rem; color: #222222; margin-bottom: 25px; line-height: 1.6; white-space: pre-wrap; font-weight: 500; text-align: left; }
         .custom-modal-actions { display: flex; gap: 10px; justify-content: center; }
-        .custom-modal-btn {
-            background-color: #003366; color: #ffffff; border: none;
-            padding: 11px 20px; border-radius: 3px; font-weight: 600;
-            cursor: pointer; font-size: 1rem; flex: 1; transition: background-color 0.2s;
-        }
+        .custom-modal-btn { background-color: #003366; color: #ffffff; border: none; padding: 11px 20px; border-radius: 3px; font-weight: 600; cursor: pointer; font-size: 1rem; flex: 1; transition: background-color 0.2s; }
         .custom-modal-btn:hover { background-color: #002244; }
         .custom-modal-btn.btn-cancel { background-color: #6c757d; }
         .custom-modal-btn.btn-cancel:hover { background-color: #5a6268; }
@@ -109,7 +93,8 @@
 <body>
     <header>
         <h1>CSIS 內部終端機 - 身份驗證與管理</h1>
-        <button class="btn-warning btn-sm" onclick="rebindAdminPrompt()">系統重置 (管理員)</button>
+        <!-- 已移除需要刷管理員卡的流程，直接點擊進入後台 -->
+        <button class="btn-warning btn-sm" onclick="openAdminModal()">進入管理系統</button>
     </header>
 
     <div class="container">
@@ -140,7 +125,8 @@
         <div class="modal-content">
             <div class="modal-header">
                 <span>CSIS 管理員控制中心</span>
-                <span style="font-size: 0.85rem; color: var(--gov-text-muted); font-weight: normal;">(再次感應管理員憑證即可退出系統)</span>
+                <!-- 增加關閉按鈕，不再依賴感應卡片退出 -->
+                <button class="btn-sm btn-danger" style="padding: 6px 15px;" onclick="closeAdminModal()">退出管理系統</button>
             </div>
             
             <div class="tabs">
@@ -155,7 +141,7 @@
                 <div id="pending-hint" class="hint-text hint-warning">操作指引：請於列表點選待處理申請，然後將空白 NFC 憑證置於感應區進行簽發。（完成審核之項目將於1分鐘後自動消失）</div>
                 <div style="flex: 1; overflow-y: auto; border: 1px solid var(--gov-border); margin-bottom: 15px; border-radius: 2px;">
                     <table id="requests-table">
-                        <thead><tr><th>申領類型</th><th>登記姓名</th><th>出生日期</th><th>電話號碼</th><th>地區 / 備註</th><th>處理狀態</th></tr></thead>
+                        <thead><tr><th>申領類型</th><th>登記姓名</th><th>電話號碼</th><th>地區 / 備註</th><th>處理狀態</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -214,7 +200,7 @@
         </div>
     </div>
 
-    <!-- 自訂提示框 (長方形區域，深藍色按鈕) -->
+    <!-- 自訂提示框 -->
     <div id="custom-alert-modal" class="custom-modal-overlay">
         <div class="custom-modal-box">
             <div id="custom-alert-text" class="custom-modal-text"></div>
@@ -232,26 +218,19 @@
             apiKey: "AIzaSyD42CHramMOT5yu6d0WhkMFs_5ZwQiPvPI",
             authDomain: "ks11-a4274.firebaseapp.com",
             databaseURL: "https://ks11-a4274-default-rtdb.firebaseio.com",
-            projectId: "ks11-a4274",
-            storageBucket: "ks11-a4274.firebasestorage.app",
-            messagingSenderId: "383409057129",
-            appId: "1:383409057129:web:3b5b6a389e523dddaee1f8"
+            projectId: "ks11-a4274"
         };
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
+        // 移除了 admin_card 相關的資料庫調用
         const DB = {
-            getAdmin: async () => (await database.ref('/settings/admin_card').once('value')).val(),
-            setAdmin: async (id) => await database.ref('/settings/admin_card').set(id),
-            resetAdmin: async () => await database.ref('/settings/admin_card').remove(),
             getAllIdentities: async () => { const snap = await database.ref('/identities').once('value'); return snap.val() ? Object.values(snap.val()) : []; },
             getIdentity: async (id) => (await database.ref(`/identities/${id}`).once('value')).val(),
             saveIdentity: async (data) => await database.ref(`/identities/${data.card_id}`).set(data),
             removeIdentity: async (id) => await database.ref(`/identities/${id}`).remove(),
             getApplications: async () => { const snap = await database.ref('/applications').once('value'); return snap.val() ? Object.values(snap.val()) : []; },
-            updateAppStatus: async (appId, status, timestamp) => {
-                await database.ref(`/applications/${appId}`).update({ status: status, approved_at: timestamp });
-            },
+            updateAppStatus: async (appId, status, timestamp) => { await database.ref(`/applications/${appId}`).update({ status: status, approved_at: timestamp }); },
             setBroadcast: async (text) => await database.ref('/broadcast').set({ text: text, updated_at: Date.now() }),
             clearBroadcast: async () => await database.ref('/broadcast').remove()
         };
@@ -266,7 +245,6 @@
 
         const generateSmartCode = () => String.fromCharCode(65 + Math.floor(Math.random() * 26)) + Math.floor(1000 + Math.random() * 9000);
 
-        /* 自訂長方形提示框邏輯 */
         function showCustomAlert(msg, onConfirm) {
             document.getElementById('custom-alert-text').innerText = msg;
             document.getElementById('custom-btn-cancel').style.display = 'none';
@@ -285,11 +263,7 @@
 
         function closeCustomModal(isConfirmed) {
             document.getElementById('custom-alert-modal').style.display = 'none';
-            if (modalCallback) {
-                const cb = modalCallback;
-                modalCallback = null;
-                cb(isConfirmed);
-            }
+            if (modalCallback) { const cb = modalCallback; modalCallback = null; cb(isConfirmed); }
         }
 
         async function switchTab(e, tabId) {
@@ -301,16 +275,6 @@
             resetAllAdminTabs();
             if (tabId === 'tab-requests') await loadRequestsTable();
             if (tabId === 'tab-list') await loadPersonnelTable();
-        }
-
-        function rebindAdminPrompt() {
-            showCustomConfirm("警告：即將重置管理員權限。\n確定要【重新綁定管理員卡】嗎？", async (confirmed) => {
-                if (confirmed) {
-                    await DB.resetAdmin();
-                    showCustomAlert("管理員權限已重置！請感應新憑證。");
-                    if (isAdminModalOpen) closeAdminModal();
-                }
-            });
         }
 
         document.addEventListener('keydown', async (e) => {
@@ -328,20 +292,9 @@
             } else { rfidBuffer = ""; }
         });
 
+        // 取消了需要讀取管理員卡的邏輯
         async function processSwipe(cardId) {
             try {
-                const adminCard = await DB.getAdmin();
-                if (!adminCard) {
-                    await DB.setAdmin(cardId);
-                    showCustomAlert(`設定成功：憑證 [${cardId}] 已登錄為管理員。`);
-                    await openAdminModal();
-                    return;
-                }
-                if (cardId === adminCard) {
-                    if (isAdminModalOpen) closeAdminModal();
-                    else await openAdminModal();
-                    return;
-                }
                 if (isAdminModalOpen) await handleAdminSwipe(cardId);
                 else await handleMainSwipe(cardId);
             } catch (err) { console.error("系統連線錯誤:", err); }
@@ -412,11 +365,11 @@
             });
 
             tbody.innerHTML = '';
-            if (visibleApps.length === 0) return tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#888;">目前無待處理或有效時間內的申請</td></tr>';
+            if (visibleApps.length === 0) return tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#888;">目前無待處理或有效時間內的換領申請</td></tr>';
             
             visibleApps.forEach(a => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td>${a.type === 'NEW' ? '首辦新證' : '換領憑證'}</td><td><strong>${a.name}</strong></td><td>${a.dob || '--'}</td><td>${a.phone || '--'}</td><td>${a.region || '--'}</td><td>${a.status === 'PENDING' ? '<span class="tag tag-pending">等待簽發</span>' : '<span class="tag tag-approved">已完成 (1分鐘後自動取消顯示)</span>'}</td>`;
+                tr.innerHTML = `<td>換領憑證</td><td><strong>${a.name}</strong></td><td>${a.phone || '--'}</td><td>換證: ${a.reason || '--'}</td><td>${a.status === 'PENDING' ? '<span class="tag tag-pending">等待簽發</span>' : '<span class="tag tag-approved">已完成 (即將隱藏)</span>'}</td>`;
                 tr.onclick = () => { 
                     if (a.status === 'APPROVED') return showCustomAlert("此申請已完成處理。"); 
                     document.querySelectorAll('#requests-table tr').forEach(r => r.classList.remove('selected')); 
@@ -431,19 +384,21 @@
         async function processAppIssueSwipe(cardId) {
             if (!state.selectedAppForIssue) return showCustomAlert("系統提示：請先自列表中選取一項申請。");
             const app = state.selectedAppForIssue;
-            let oldData = app.type === 'REPLACE' ? (await DB.getIdentity(app.oldCardId) || (await DB.getAllIdentities()).find(i => i.smart_code === app.oldCardId)) : null;
-            const smartCode = oldData ? oldData.smart_code : generateSmartCode();
+            let oldData = await DB.getIdentity(app.oldCardId) || (await DB.getAllIdentities()).find(i => i.smart_code === app.oldCardId);
             
-            if (oldData) await DB.removeIdentity(oldData.card_id);
+            if (!oldData) return showCustomAlert("錯誤：原系統中未找到該申請人的舊憑證紀錄。");
+            
+            const smartCode = oldData.smart_code;
+            await DB.removeIdentity(oldData.card_id);
             
             await DB.saveIdentity({ 
                 card_id: cardId, 
                 smart_code: smartCode, 
-                name: app.name || (oldData?.name), 
-                dob: app.dob || (oldData?.dob), 
-                gender: app.gender || (oldData?.gender), 
-                phone: app.phone || (oldData?.phone) || "",
-                region: app.region || (oldData?.region),
+                name: app.name, 
+                dob: oldData.dob, 
+                gender: oldData.gender, 
+                phone: app.phone,
+                region: oldData.region,
                 issue_time: new Date().toISOString() 
             });
             
