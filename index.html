@@ -28,6 +28,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--sec)}tr.sel{background:r
 .fg{display:grid;grid-template-columns:90px 1fr;gap:12px 10px;align-items:center;max-width:560px;margin:14px auto}.fg label{text-align:right;font-weight:600;color:var(--mut)}
 .mb{background:var(--card);border-radius:4px;max-width:450px;width:100%;padding:22px}#cm-t{white-space:pre-wrap;margin-bottom:16px;font-weight:500}#cm-in{margin-bottom:14px}.row{display:flex;gap:10px}.row>*{flex:1}
 [hidden]{display:none!important}
+#toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:120;color:#fff;padding:12px 22px;border-radius:6px;font-weight:700;display:none;box-shadow:0 4px 14px rgba(0,0,0,.3)}
 </style></head><body>
 <header><h1>CSIS 內部終端機 - 身份驗證與管理</h1><button class="warn" onclick="openAdmin()">進入管理系統</button></header>
 <div class="container"><div class="grid">
@@ -53,6 +54,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--sec)}tr.sel{background:r
  <div id="t-aud" class="tc"><div id="aud-s" class="hint"></div><table id="at"><thead><tr><th>時間</th><th>操作者</th><th>動作</th><th>詳情</th></tr></thead><tbody></tbody></table></div>
 </div></div>
 
+<div id="toast"></div>
 <div id="cm" class="ov" style="z-index:99" role="dialog" aria-modal="true"><div class="mb"><div id="cm-t"></div><input id="cm-in" type="password" hidden><div class="row"><button id="cm-ok">確認</button><button id="cm-no" class="sec" hidden>取消</button></div></div></div>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -95,12 +97,12 @@ async function scan(v){
  if(!/^\d{10}$/.test(v))return say('系統警告：感應資料格式無效。');
  if(isOpen)return adminSwipe(v);
  const r=await getId(v);r?show(r,'實體卡'):fail('驗證失敗：未註冊','此憑證未在資料庫中找到匹配紀錄。',v)}
-async function verifyQR(v){
+async function verifyQR(v,via='動態二維碼'){
  const [,sc,w,sig]=v.split('.'),r=sc&&await findBySmart(sc);
  if(!r||!r.qr_secret)return fail('二維碼無效','找不到對應身份或未啟用二維碼。',sc||'--');
  if(Math.abs(Math.floor(Date.now()/30000)-Number(w))>1)return fail('二維碼已過期','請市民重新開啟頁面（截圖無效）。',r.card_id);
  if((await hmac(r.qr_secret,sc+w)).slice(0,16)!==sig)return fail('簽名驗證失敗','二維碼可能被偽造或篡改。',r.card_id);
- show(r,'動態二維碼')}
+ show(r,via)}
 function paint(rows,msg,bg,desc){$('info').innerHTML=rows.map(([l,v])=>`<div class="l">${l}</div><div class="v">${esc(v)}</div>`).join('');const b=$('banner');b.style.background=bg;b.style.color=bg?'#fff':'';b.textContent=msg;$('detail').textContent=desc}
 function fail(msg,desc,id){paint([['憑證號碼:',id],['系統狀態:','驗證失敗']],msg,'var(--bad)',desc);audit('VERIFY_FAIL',msg+' '+id)}
 function show(r,via){const left=Math.floor((expOf(r)-Date.now())/1000),ok=left>0;
@@ -179,4 +181,12 @@ async function loadAudit(){
  $('at').querySelector('tbody').innerHTML=l.reverse().map(e=>`<tr><td>${esc(new Date(e.ts).toLocaleString('zh-HK'))}</td><td>${esc(e.actor)}</td><td>${esc(e.act)}</td><td>${esc(e.detail)}</td></tr>`).join('')||'<tr><td colspan="4" class="c">暫無日誌</td></tr>'}
 
 function resetAll(){resetRep();resetNew();resetCx()}
+
+/* ---------- 手機掃碼器即時接收 ---------- */
+let feedFirst=true,toastT=null;
+function toast(t,bad){const e=$('toast');e.textContent=t;e.style.background=bad?'var(--bad)':'var(--ok)';e.style.display='block';clearTimeout(toastT);toastT=setTimeout(()=>e.style.display='none',5000)}
+database.ref('/scanFeed/latest').on('value',s=>{
+ const d=s.val();if(feedFirst){feedFirst=false;return} // 略過頁面載入時的舊紀錄
+ if(!d||!d.code)return;
+ run(async()=>{await verifyQR(d.code,'手機掃碼');if(isOpen)toast('📱 '+$('banner').textContent+'（'+($('info').querySelector('.v')?.textContent||'')+'）',$('banner').textContent.includes('通過')===false)})});
 </script></body></html>
