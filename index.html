@@ -1,504 +1,182 @@
 <!DOCTYPE html>
-<html lang="zh-HK">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CSIS 內部終端機 - 身份驗證與管理</title>
-    <style>
-        :root {
-            --gov-primary: #003366;
-            --gov-secondary: #f4f6f8;
-            --gov-text-dark: #222222;
-            --gov-text-muted: #555555;
-            --gov-border: #c8d1d9;
-            --gov-action: #0066cc;
-            --gov-danger: #b30000;
-            --gov-success: #007a33;
-            --gov-warning: #d9822b;
-            --gov-bg: #e9ecef;
-        }
-        
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-        body { background-color: var(--gov-bg); color: var(--gov-text-dark); display: flex; flex-direction: column; min-height: 100vh; font-size: 14px; }
-        
-        header { background-color: var(--gov-primary); color: #ffffff; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
-        header h1 { font-size: 1.1rem; font-weight: 600; letter-spacing: 0.5px; margin: 0; }
-        
-        .btn-sm { padding: 6px 12px; font-size: 0.85rem; border-radius: 3px; border: 1px solid transparent; cursor: pointer; font-weight: 500; }
-        .btn-warning { background-color: #d9822b; color: #ffffff; border: none; transition: 0.2s; }
-        .btn-warning:hover { background-color: #b86d24; }
-        .btn-primary { background-color: var(--gov-action); color: #ffffff; border: none; padding: 10px 16px; border-radius: 3px; cursor: pointer; font-weight: 600; transition: 0.2s;}
-        .btn-primary:hover { background-color: #004c99; }
-        .btn-primary:disabled { background-color: #cccccc; cursor: not-allowed; }
-        .btn-danger { background-color: var(--gov-danger); color: #ffffff; border: none; padding: 10px 16px; border-radius: 3px; cursor: pointer; font-weight: 600; transition: 0.2s;}
-        .btn-danger:hover { background-color: #800000; }
-        
-        .container { flex: 1; padding: 20px; max-width: 1000px; margin: 0 auto; width: 100%; }
-        
-        .card { background-color: #ffffff; border: 1px solid var(--gov-border); border-radius: 4px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .card-title { color: var(--gov-primary); font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid var(--gov-secondary); padding-bottom: 8px; }
-        .terminal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
-        
-        .info-grid { display: grid; grid-template-columns: 120px 1fr; gap: 10px; font-size: 0.95rem; }
-        .info-label { color: var(--gov-text-muted); font-weight: 600; text-align: right; padding-right: 10px; }
-        .info-value { color: var(--gov-text-dark); font-weight: 500; border-bottom: 1px solid var(--gov-secondary); padding-bottom: 4px; }
-        
-        .status-banner { padding: 20px; font-size: 1.25rem; font-weight: bold; border-radius: 4px; text-align: center; background-color: var(--gov-secondary); margin-bottom: 15px; border: 1px solid var(--gov-border); }
-        
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,40,70,0.6); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 20px; }
-        .modal-content { background-color: #ffffff; width: 100%; max-width: 900px; height: 85vh; border-radius: 4px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-        .modal-header { background-color: #f8f9fa; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; color: var(--gov-primary); font-weight: bold; border-bottom: 1px solid var(--gov-border); font-size: 1.1rem; }
-        
-        .tabs { display: flex; background-color: var(--gov-secondary); border-bottom: 1px solid var(--gov-border); }
-        .tab-btn { flex: 1; padding: 12px 10px; background: none; border: none; border-right: 1px solid var(--gov-border); color: var(--gov-text-muted); font-size: 0.95rem; cursor: pointer; font-weight: 500; transition: 0.1s; }
-        .tab-btn:last-child { border-right: none; }
-        .tab-btn:hover { background-color: #e2e6ea; }
-        .tab-btn.active { color: var(--gov-primary); background-color: #ffffff; font-weight: 700; border-bottom: 2px solid var(--gov-action); }
-        
-        .tab-content { display: none; padding: 20px; flex: 1; overflow-y: auto; background-color: #ffffff; }
-        .tab-content.active { display: flex; flex-direction: column; }
-        
-        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-        th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid var(--gov-border); }
-        th { color: var(--gov-text-muted); background-color: #f4f6f8; font-weight: 600; border-top: 1px solid var(--gov-border); border-bottom: 2px solid var(--gov-border); }
-        tbody tr { cursor: pointer; transition: background-color 0.15s; }
-        tbody tr:hover { background-color: #f9fafb; }
-        tr.selected { background-color: #e6f0fa; border-left: 3px solid var(--gov-action); }
-        tr.selected td:first-child { padding-left: 7px; }
-        
-        .tag { padding: 3px 8px; border-radius: 2px; font-size: 0.8rem; font-weight: bold; display: inline-block; }
-        .tag-pending { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
-        .tag-approved { background-color: #dff0d8; color: #3c763d; border: 1px solid #d6e9c6; }
-        
-        .hint-text { background-color: #f8f9fa; padding: 12px; border-left: 4px solid var(--gov-primary); font-weight: 600; margin-bottom: 15px; color: var(--gov-text-dark); font-size: 0.95rem; }
-        .hint-warning { border-left-color: var(--gov-warning); background-color: #fffaf0; }
-        
-        input, select, textarea { padding: 8px 10px; border: 1px solid #aaaaaa; border-radius: 3px; font-size: 0.95rem; width: 100%; background-color: #ffffff; }
-        input:disabled, select:disabled { background-color: #f5f5f5; color: #888888; }
-        
-        .form-grid { display: grid; grid-template-columns: 100px 1fr; gap: 15px 10px; align-items: center; max-width: 600px; margin: 0 auto; width: 100%; padding: 20px; background-color: var(--gov-secondary); border: 1px solid var(--gov-border); border-radius: 4px; }
-        .form-grid label { text-align: right; font-weight: 600; color: var(--gov-text-muted); font-size: 0.9rem; }
+<html lang="zh-HK"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CSIS 內部終端機 - 身份驗證與管理</title>
+<style>
+:root{--p:#003366;--a:#0066cc;--bg:#e9ecef;--card:#fff;--sec:#f4f6f8;--bd:#c8d1d9;--tx:#222;--mut:#555;--ok:#007a33;--warn:#d9822b;--bad:#b30000}
+@media(prefers-color-scheme:dark){:root{--p:#6fb3ec;--a:#2a7fd4;--bg:#0f1720;--card:#16212c;--sec:#1b2733;--bd:#2c3b4a;--tx:#e8eef4;--mut:#9fb0c0}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Noto Sans HK","PingFang HK","Microsoft JhengHei","Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--tx);font-size:14px;min-height:100vh}
+header{background:#003366;color:#fff;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10}
+h1{font-size:1.1rem}.container{max-width:1000px;margin:0 auto;padding:20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:4px;padding:20px}.ct{color:var(--p);font-weight:700;margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid var(--sec)}
+.info{display:grid;grid-template-columns:110px 1fr;gap:8px}.info .l{color:var(--mut);font-weight:600;text-align:right;padding-right:8px}.info .v{border-bottom:1px solid var(--sec);padding-bottom:3px;word-break:break-all}
+.banner{padding:22px;font-size:1.25rem;font-weight:700;border-radius:4px;text-align:center;background:var(--sec);border:1px solid var(--bd);margin-bottom:12px}
+button{padding:9px 16px;border:0;border-radius:3px;font-weight:600;cursor:pointer;background:var(--a);color:#fff;font-size:.95rem}
+button:disabled{opacity:.5;cursor:not-allowed}.warn{background:var(--warn)}.bad{background:var(--bad)}.sec{background:var(--card);color:var(--tx);border:1px solid var(--bd)}
+input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--bd);border-radius:3px;font-size:.95rem;background:var(--card);color:var(--tx)}input:disabled,select:disabled{opacity:.5}
+:focus-visible{outline:2px solid var(--a);outline-offset:1px}
+.ov{position:fixed;inset:0;background:rgba(0,40,70,.6);display:none;justify-content:center;align-items:center;z-index:50;padding:16px}
+.adm{background:var(--card);width:100%;max-width:960px;height:88vh;border-radius:4px;display:flex;flex-direction:column;overflow:hidden}
+.ah{padding:12px 18px;display:flex;justify-content:space-between;align-items:center;background:var(--sec);border-bottom:1px solid var(--bd);color:var(--p);font-weight:700}
+.tabs{display:flex;flex-wrap:wrap;background:var(--sec);border-bottom:1px solid var(--bd)}.tb{flex:1;min-width:110px;background:none;color:var(--mut);border-radius:0;border-right:1px solid var(--bd)}.tb.on{background:var(--card);color:var(--p);border-bottom:2px solid var(--a)}
+.tc{display:none;padding:18px;flex:1;overflow-y:auto}.tc.on{display:block}
+.hint{background:var(--sec);border-left:4px solid var(--warn);padding:10px 12px;margin-bottom:12px;font-weight:600}
+table{width:100%;border-collapse:collapse}th,td{padding:10px 8px;text-align:left;border-bottom:1px solid var(--bd)}th{background:var(--sec);color:var(--mut)}
+tbody tr{cursor:pointer}tbody tr:hover{background:var(--sec)}tr.sel{background:rgba(0,102,204,.15)}.c{text-align:center;color:var(--mut)}
+.tag{padding:2px 8px;border-radius:2px;font-size:.8rem;font-weight:700}.pend{background:#fff3cd;color:#856404}.done{background:#dff0d8;color:#3c763d}
+.fg{display:grid;grid-template-columns:90px 1fr;gap:12px 10px;align-items:center;max-width:560px;margin:14px auto}.fg label{text-align:right;font-weight:600;color:var(--mut)}
+.mb{background:var(--card);border-radius:4px;max-width:450px;width:100%;padding:22px}#cm-t{white-space:pre-wrap;margin-bottom:16px;font-weight:500}#cm-in{margin-bottom:14px}.row{display:flex;gap:10px}.row>*{flex:1}
+[hidden]{display:none!important}
+</style></head><body>
+<header><h1>CSIS 內部終端機 - 身份驗證與管理</h1><button class="warn" onclick="openAdmin()">進入管理系統</button></header>
+<div class="container"><div class="grid">
+ <div class="card"><div class="ct">憑證讀取資料</div><div class="info" id="info"></div></div>
+ <div class="card" style="display:flex;flex-direction:column;justify-content:center"><div class="banner" id="banner">請感應憑證或掃描市民二維碼</div><div id="detail" style="text-align:center;color:var(--mut)">等待系統感應...</div></div>
+</div></div>
 
-        /* 自訂長方形提示框 UI */
-        .custom-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 40, 70, 0.6); display: none; justify-content: center; align-items: center; z-index: 10000; padding: 20px; }
-        .custom-modal-box { background-color: #ffffff; border-radius: 4px; border: 1px solid var(--gov-border); width: 100%; max-width: 450px; padding: 25px 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
-        .custom-modal-text { font-size: 1.05rem; color: #222222; margin-bottom: 25px; line-height: 1.6; white-space: pre-wrap; font-weight: 500; text-align: left; }
-        .custom-modal-actions { display: flex; gap: 10px; justify-content: center; }
-        .custom-modal-btn { background-color: #003366; color: #ffffff; border: none; padding: 11px 20px; border-radius: 3px; font-weight: 600; cursor: pointer; font-size: 1rem; flex: 1; transition: background-color 0.2s; }
-        .custom-modal-btn:hover { background-color: #002244; }
-        .custom-modal-btn.btn-cancel { background-color: #6c757d; }
-        .custom-modal-btn.btn-cancel:hover { background-color: #5a6268; }
-    </style>
-</head>
-<body>
-    <header>
-        <h1>CSIS 內部終端機 - 身份驗證與管理</h1>
-        <!-- 已移除需要刷管理員卡的流程，直接點擊進入後台 -->
-        <button class="btn-warning btn-sm" onclick="openAdminModal()">進入管理系統</button>
-    </header>
+<div class="ov" id="admin"><div class="adm">
+ <div class="ah"><span>CSIS 管理員控制中心</span><button class="bad" onclick="closeAdmin()">退出管理系統</button></div>
+ <div class="tabs"><button class="tb on" data-t="t-req">網上申請審核</button><button class="tb" data-t="t-rep">現場更換憑證</button><button class="tb" data-t="t-new">現場簽發新證</button><button class="tb" data-t="t-bc">系統廣播</button><button class="tb" data-t="t-list">人員紀錄與注銷</button><button class="tb" data-t="t-aud">審計日誌</button></div>
+ <div id="t-req" class="tc on"><div id="pend-hint" class="hint">請點選待處理申請，再感應空白憑證簽發。（完成項目 1 分鐘後隱藏）</div><table id="rq"><thead><tr><th>類型</th><th>姓名</th><th>電話</th><th>備註</th><th>狀態</th></tr></thead><tbody></tbody></table></div>
+ <div id="t-rep" class="tc"><div id="rep-h" class="hint"></div><div id="rep-i" class="c" style="margin:26px 0;font-size:1.1rem"></div><div class="c"><button onclick="resetRep()">中止並重新操作</button></div></div>
+ <div id="t-new" class="tc"><div id="new-h" class="hint"></div><div id="new-l" class="c" style="font-weight:700;margin-bottom:12px"></div>
+  <div class="fg"><label>登記姓名</label><input id="c-name" disabled><label>出生日期</label><input id="c-dob" type="date" disabled><label>電話號碼</label><input id="c-ph" type="tel" disabled><label>居住地區</label><input id="c-rg" disabled><label>性別</label><select id="c-g" disabled><option>男</option><option>女</option></select></div>
+  <div class="c"><button id="save" disabled onclick="run(saveNew,this)">儲存資料並簽發新證</button></div></div>
+ <div id="t-bc" class="tc"><div class="hint">廣播將即時彈出至所有市民頁面。</div><div style="max-width:560px;margin:auto">
+  <textarea id="bc-t" rows="4" maxlength="300" placeholder="輸入廣播內容"></textarea>
+  <div class="row" style="margin:10px 0"><select id="bc-d"><option value="5">5 分鐘後失效</option><option value="30">30 分鐘後失效</option><option value="60">1 小時後失效</option><option value="0">不自動失效</option></select></div>
+  <div class="row"><button onclick="run(sendBc,this)">發送廣播</button><button class="sec" onclick="run(clearBc,this)">清除廣播</button></div></div></div>
+ <div id="t-list" class="tc"><input id="q" placeholder="搜尋姓名 / 卡號 / 智能編號 / 地區" style="margin-bottom:10px"><div id="cx-h" class="hint" style="border-color:var(--bad)" hidden></div>
+  <table id="pt"><thead><tr><th>憑證號碼</th><th>智能編號</th><th>姓名</th><th>電話</th><th>地區</th></tr></thead><tbody></tbody></table>
+  <div class="c" style="margin-top:12px"><button class="bad" onclick="reqCancel()">注銷選取人員</button></div></div>
+ <div id="t-aud" class="tc"><div id="aud-s" class="hint"></div><table id="at"><thead><tr><th>時間</th><th>操作者</th><th>動作</th><th>詳情</th></tr></thead><tbody></tbody></table></div>
+</div></div>
 
-    <div class="container">
-        <div class="terminal-grid">
-            <div class="card">
-                <div class="card-title">憑證讀取資料</div>
-                <div class="info-grid">
-                    <div class="info-label">實體憑證號碼:</div> <div class="info-value" id="val-cardId">--</div>
-                    <div class="info-label">智能編號:</div> <div class="info-value" id="val-smartCode">--</div>
-                    <div class="info-label">登記姓名:</div> <div class="info-value" id="val-name">--</div>
-                    <div class="info-label">性別:</div> <div class="info-value" id="val-gender">--</div>
-                    <div class="info-label">出生日期:</div> <div class="info-value" id="val-dob">--</div>
-                    <div class="info-label">電話號碼:</div> <div class="info-value" id="val-phone">--</div>
-                    <div class="info-label">登記地區:</div> <div class="info-value" id="val-region">--</div>
-                    <div class="info-label">系統狀態:</div> <div class="info-value" id="val-status">--</div>
-                </div>
-            </div>
+<div id="cm" class="ov" style="z-index:99" role="dialog" aria-modal="true"><div class="mb"><div id="cm-t"></div><input id="cm-in" type="password" hidden><div class="row"><button id="cm-ok">確認</button><button id="cm-no" class="sec" hidden>取消</button></div></div></div>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script>
+firebase.initializeApp({apiKey:"AIzaSyD42CHramMOT5yu6d0WhkMFs_5ZwQiPvPI",authDomain:"ks11-a4274.firebaseapp.com",databaseURL:"https://ks11-a4274-default-rtdb.firebaseio.com",projectId:"ks11-a4274"});
+const database=firebase.database(),$=id=>document.getElementById(id),enc=new TextEncoder();
+const VALIDITY_MINUTES=10,GAP=500; // GAP：讀卡機每粒字最長間隔(毫秒)
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''),rnd=()=>hex(crypto.getRandomValues(new Uint8Array(16)));
+const sha=async s=>hex(await crypto.subtle.digest('SHA-256',enc.encode(s)));
+async function pbkdf2(p,salt){const k=await crypto.subtle.importKey('raw',enc.encode(p),'PBKDF2',false,['deriveBits']);return hex(await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(salt),iterations:100000,hash:'SHA-256'},k,256))}
+async function hmac(sec,msg){const k=await crypto.subtle.importKey('raw',enc.encode(sec),{name:'HMAC',hash:'SHA-256'},false,['sign']);return hex(await crypto.subtle.sign('HMAC',k,enc.encode(msg)))}
+async function audit(act,detail){const r=database.ref('/audit'),l=(await r.orderByKey().limitToLast(1).once('value')).val(),prev=l?Object.values(l)[0].hash:'GENESIS',ts=Date.now();await r.push({ts,actor:'admin',act,detail:String(detail),prev,hash:await sha(prev+ts+'admin'+act+detail)})}
+const getId=async id=>(await database.ref('/identities/'+id).once('value')).val();
+async function findBySmart(sc){const ix=(await database.ref('/smartIndex/'+sc).once('value')).val();if(ix){const r=await getId(ix);if(r)return r}
+ const s=(await database.ref('/identities').orderByChild('smart_code').equalTo(sc).once('value')).val(),r=s?Object.values(s)[0]:null;if(r)database.ref('/smartIndex/'+sc).set(r.card_id);return r}
+const getAll=async()=>Object.values((await database.ref('/identities').once('value')).val()||{});
+const expOf=r=>r.expires_at||new Date(r.issue_time).getTime()+VALIDITY_MINUTES*60000;
+async function newSmart(){for(;;){const c=String.fromCharCode(65+Math.floor(Math.random()*26))+Math.floor(1000+Math.random()*9000);if(!await findBySmart(c))return c}}
+const fresh=()=>({issue_time:new Date().toISOString(),expires_at:Date.now()+VALIDITY_MINUTES*60000,qr_secret:rnd()});
 
-            <div class="card" style="display: flex; flex-direction: column; justify-content: center;">
-                <div class="status-banner" id="status-banner">請將憑證置於感應區</div>
-                <div style="text-align: center; color: var(--gov-text-muted); font-size: 0.95rem;" id="status-detail">等待系統感應...</div>
-            </div>
-        </div>
-    </div>
+let mcb=null;
+function modal(msg,o={}){$('cm-t').textContent=msg;$('cm-in').hidden=!o.input;$('cm-in').value='';$('cm-no').hidden=!(o.confirm||o.input);mcb=o.cb||null;$('cm').style.display='flex';(o.input?$('cm-in'):$('cm-ok')).focus()}
+function closeM(ok){const v=$('cm-in').value,c=mcb;mcb=null;$('cm').style.display='none';if(c)c(ok,v)}
+$('cm-ok').onclick=()=>closeM(true);$('cm-no').onclick=()=>closeM(false);
+$('cm-in').addEventListener('keydown',e=>{if(e.key==='Enter')closeM(true)});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&$('cm').style.display==='flex')closeM(false)});
+const say=m=>new Promise(r=>modal(m,{cb:r})),ask=m=>new Promise(r=>modal(m,{confirm:true,cb:r}));
+async function run(fn,btn){if(btn)btn.disabled=true;try{await fn()}catch(e){console.error(e);say('系統連線錯誤：'+(e.code||e.message||''))}finally{if(btn)btn.disabled=false}}
 
-    <!-- 管理員後台 Modal -->
-    <div class="modal-overlay" id="admin-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <span>CSIS 管理員控制中心</span>
-                <!-- 增加關閉按鈕，不再依賴感應卡片退出 -->
-                <button class="btn-sm btn-danger" style="padding: 6px 15px;" onclick="closeAdminModal()">退出管理系統</button>
-            </div>
-            
-            <div class="tabs">
-                <button class="tab-btn active" onclick="switchTab(event, 'tab-requests')">網上申請審核</button>
-                <button class="tab-btn" onclick="switchTab(event, 'tab-replace')">現場更換憑證</button>
-                <button class="tab-btn" onclick="switchTab(event, 'tab-create')">現場簽發新證</button>
-                <button class="tab-btn" onclick="switchTab(event, 'tab-broadcast')">系統廣播訊息</button>
-                <button class="tab-btn" onclick="switchTab(event, 'tab-list')">人員紀錄與注銷</button>
-            </div>
+let isOpen=false,cur='t-req',apps=[],appsRef=null,appsH=null,poll=null,st={},buf='',last=0;
 
-            <div id="tab-requests" class="tab-content active">
-                <div id="pending-hint" class="hint-text hint-warning">操作指引：請於列表點選待處理申請，然後將空白 NFC 憑證置於感應區進行簽發。（完成審核之項目將於1分鐘後自動消失）</div>
-                <div style="flex: 1; overflow-y: auto; border: 1px solid var(--gov-border); margin-bottom: 15px; border-radius: 2px;">
-                    <table id="requests-table">
-                        <thead><tr><th>申領類型</th><th>登記姓名</th><th>電話號碼</th><th>地區 / 備註</th><th>處理狀態</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
+/* ---------- 感應輸入 (讀卡機 / QR 掃描器均模擬鍵盤輸入) ---------- */
+addEventListener('keydown',e=>{
+ if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)||$('cm').style.display==='flex')return;
+ const n=Date.now();if(n-last>GAP)buf='';last=n;
+ if(e.key==='Enter'){const v=buf.trim();buf='';if(v)run(()=>scan(v))}else if(e.key.length===1)buf+=e.key});
+async function scan(v){
+ if(v.startsWith('CSIS.'))return verifyQR(v);
+ if(!/^\d{10}$/.test(v))return say('系統警告：感應資料格式無效。');
+ if(isOpen)return adminSwipe(v);
+ const r=await getId(v);r?show(r,'實體卡'):fail('驗證失敗：未註冊','此憑證未在資料庫中找到匹配紀錄。',v)}
+async function verifyQR(v){
+ const [,sc,w,sig]=v.split('.'),r=sc&&await findBySmart(sc);
+ if(!r||!r.qr_secret)return fail('二維碼無效','找不到對應身份或未啟用二維碼。',sc||'--');
+ if(Math.abs(Math.floor(Date.now()/30000)-Number(w))>1)return fail('二維碼已過期','請市民重新開啟頁面（截圖無效）。',r.card_id);
+ if((await hmac(r.qr_secret,sc+w)).slice(0,16)!==sig)return fail('簽名驗證失敗','二維碼可能被偽造或篡改。',r.card_id);
+ show(r,'動態二維碼')}
+function paint(rows,msg,bg,desc){$('info').innerHTML=rows.map(([l,v])=>`<div class="l">${l}</div><div class="v">${esc(v)}</div>`).join('');const b=$('banner');b.style.background=bg;b.style.color=bg?'#fff':'';b.textContent=msg;$('detail').textContent=desc}
+function fail(msg,desc,id){paint([['憑證號碼:',id],['系統狀態:','驗證失敗']],msg,'var(--bad)',desc);audit('VERIFY_FAIL',msg+' '+id)}
+function show(r,via){const left=Math.floor((expOf(r)-Date.now())/1000),ok=left>0;
+ paint([['實體憑證號碼:',r.card_id],['智能編號:',r.smart_code],['登記姓名:',r.name],['性別:',r.gender],['出生日期:',r.dob],['電話號碼:',r.phone||'未提供'],['登記地區:',r.region],['系統狀態:',ok?`有效 (剩餘 ${Math.floor(left/60)}分${left%60}秒)`:'已過期'],['驗證方式:',via]],
+  ok?'驗證通過：身份有效':'警告：憑證已逾期',ok?'var(--ok)':'var(--warn)',ok?`系統紀錄匹配，持證人：${r.name}`:'請指導市民進行換證手續。')}
 
-            <div id="tab-replace" class="tab-content">
-                <div id="replace-status" class="hint-text hint-warning">步驟 1：請感應【原有舊憑證】以讀取資料</div>
-                <div id="replace-info" style="text-align: center; color: var(--gov-text-muted); margin: 30px 0; font-size: 1.1rem; font-weight: 500;">系統等待讀取舊憑證...</div>
-                <div style="text-align: center;">
-                    <button class="btn-primary" style="width: 200px;" onclick="resetReplaceTab()">中止並重新操作</button>
-                </div>
-            </div>
+/* ---------- 管理員 (PIN) ---------- */
+async function openAdmin(){
+ const c=(await database.ref('/admin/cfg').once('value')).val();
+ modal(c?'請輸入管理員 PIN：':'首次使用：請設定管理員 PIN（最少 6 位）：',{input:true,cb:async(ok,v)=>{if(!ok)return;try{
+  if(!c){if(v.length<6)return say('PIN 最少 6 位。');const salt=rnd();await database.ref('/admin/cfg').set({salt,hash:await pbkdf2(v,salt)});await audit('SET_PIN','')}
+  else if(await pbkdf2(v,c.salt)!==c.hash){await audit('ADMIN_LOGIN_FAIL','');return say('PIN 錯誤。')}
+  await audit('ADMIN_LOGIN','');enter()}catch(e){say('連線錯誤：'+(e.code||e.message))}}})}
+function enter(){$('admin').style.display='flex';isOpen=true;resetAll();
+ appsRef=database.ref('/applications');appsH=appsRef.on('value',s=>{apps=Object.values(s.val()||{});if(cur==='t-req')drawReq()});poll=setInterval(()=>{if(cur==='t-req')drawReq()},10000)}
+function closeAdmin(){$('admin').style.display='none';isOpen=false;clearInterval(poll);if(appsRef)appsRef.off('value',appsH);audit('ADMIN_LOGOUT','')}
+document.querySelectorAll('.tb').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tb,.tc').forEach(e=>e.classList.remove('on'));b.classList.add('on');cur=b.dataset.t;$(cur).classList.add('on');document.activeElement.blur();resetAll();
+ if(cur==='t-req')drawReq();if(cur==='t-list')run(loadList);if(cur==='t-aud')run(loadAudit)});
+async function adminSwipe(id){({'t-req':issueApp,'t-rep':repSwipe,'t-new':newSwipe,'t-list':cxSwipe}[cur]||(()=>{}))(id)}
 
-            <div id="tab-create" class="tab-content">
-                <div id="create-status" class="hint-text" style="border-left-color: var(--gov-danger); background-color: #fdf3f2;">安全性限制：必須先感應【全新空白憑證】，系統方可解鎖下方資料輸入區域。</div>
-                <div id="create-card-lbl" style="text-align: center; color: var(--gov-text-muted); font-size: 1.1rem; font-weight: 600; margin-bottom: 20px;">目前狀態：未讀取卡片</div>
-                
-                <div class="form-grid">
-                    <label>登記姓名</label> <input type="text" id="c-name" disabled>
-                    <label>出生日期</label> <input type="date" id="c-dob" disabled>
-                    <label>電話號碼</label> <input type="tel" id="c-phone" disabled>
-                    <label>居住地區</label> <input type="text" id="c-region" disabled>
-                    <label>性別</label>
-                    <select id="c-gender" disabled><option>男</option><option>女</option></select>
-                </div>
-                <div style="text-align: center; margin-top: 25px;">
-                    <button id="btn-save-new" class="btn-primary" style="width: 250px;" disabled onclick="saveNewIdentity()">儲存資料並簽發新證</button>
-                </div>
-            </div>
+/* ---------- 網上申請 ---------- */
+function drawReq(){const now=Date.now(),v=apps.filter(a=>a.status!=='APPROVED'||now-(a.approved_at||0)<6e4).sort((a,b)=>(a.ts||0)-(b.ts||0)),tb=$('rq').querySelector('tbody');
+ tb.innerHTML=v.length?'':'<tr><td colspan="5" class="c">目前無待處理申請</td></tr>';
+ v.forEach(a=>{const tr=document.createElement('tr'),p=a.status==='PENDING';if(st.app&&st.app.id===a.id)tr.className='sel';
+  tr.innerHTML=`<td>換領憑證</td><td><b>${esc(a.name)}</b></td><td>${esc(a.phone||'--')}</td><td>換證: ${esc(a.reason||'--')}</td><td><span class="tag ${p?'pend':'done'}">${p?'等待簽發':'已完成'}</span></td>`;
+  tr.onclick=()=>{if(!p)return say('此申請已完成處理。');st.app=a;$('pend-hint').textContent=`已選取 ${a.name}，請感應空白憑證完成簽發。`;drawReq()};tb.appendChild(tr)})}
+async function issueApp(cardId){
+ const app=st.app;if(!app)return say('請先自列表選取一項申請。');
+ const old=await findBySmart(app.smart_code||app.oldCardId)||await getId(app.oldCardId);if(!old)return say('錯誤：找不到申請人的舊憑證紀錄。');
+ if(await getId(cardId))return say('操作無效：此憑證已被註冊使用。');
+ const u={};u['identities/'+old.card_id]=null;u['identities/'+cardId]={...old,...fresh(),card_id:cardId,phone:app.phone};u['smartIndex/'+old.smart_code]=cardId;
+ u['applications/'+app.id+'/status']='APPROVED';u['applications/'+app.id+'/approved_at']=Date.now();
+ await database.ref().update(u);await audit('ISSUE_REPLACE',`${old.smart_code} ${old.card_id}->${cardId}`);st.app=null;
+ $('pend-hint').textContent='請點選待處理申請，再感應空白憑證簽發。';say(`手續完成！\n實體憑證號碼: ${cardId}\n智能編號: ${old.smart_code}`)}
 
-            <div id="tab-broadcast" class="tab-content">
-                <div class="hint-text">廣播控制：在此處輸入的內容，將即時以長方形提示框發送並彈出至所有市民用戶頁面。</div>
-                <div style="max-width: 600px; margin: 20px auto; width: 100%;">
-                    <label style="font-weight: bold; margin-bottom: 8px; display: block;">推送提示訊息內容：</label>
-                    <textarea id="broadcast-msg-input" rows="4" placeholder="例如：系統將於今晚 23:00 進行例行維護更新，請留意..."></textarea>
-                    <div style="display: flex; gap: 10px; margin-top: 15px;">
-                        <button class="btn-primary" style="flex: 1;" onclick="sendBroadcast()">發布廣播訊息</button>
-                        <button class="btn-danger" style="flex: 1;" onclick="clearBroadcast()">清除當前廣播</button>
-                    </div>
-                </div>
-            </div>
+/* ---------- 現場更換 ---------- */
+function resetRep(){st.old=null;$('rep-h').textContent='步驟 1：請感應【原有舊憑證】';$('rep-i').textContent='系統等待讀取舊憑證...'}
+async function repSwipe(id){
+ if(!st.old){const r=await getId(id);if(!r)return say('資料庫中未尋獲此憑證紀錄。');st.old=r;$('rep-h').textContent='步驟 2：請感應【全新空白憑證】';$('rep-i').textContent='舊戶口已鎖定：'+r.name;return}
+ if(id===st.old.card_id)return say('新舊憑證不可為同一張。');if(await getId(id))return say('新卡已被註冊使用。');
+ const o=st.old,u={};u['identities/'+o.card_id]=null;u['identities/'+id]={...o,...fresh(),card_id:id};u['smartIndex/'+o.smart_code]=id;
+ await database.ref().update(u);await audit('REPLACE_ONSITE',`${o.smart_code} ${o.card_id}->${id}`);resetRep();say('換領手續完成！\n新憑證號碼: '+id)}
 
-            <div id="tab-list" class="tab-content">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <div style="font-weight: 600; color: var(--gov-primary);">系統已註冊人員紀錄</div>
-                    <button class="btn-danger" onclick="requestCancel()">注銷選取戶口</button>
-                </div>
-                <div style="flex: 1; overflow-y: auto; border: 1px solid var(--gov-border); border-radius: 2px;">
-                    <table id="personnel-table">
-                        <thead><tr><th>實體憑證號碼</th><th>智能編號</th><th>登記姓名</th><th>電話號碼</th><th>居住地區</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-                <div id="cancel-status" class="hint-text" style="border-left-color: var(--gov-danger); background-color: #fdf3f2; margin-top: 15px; display: none;"></div>
-            </div>
-        </div>
-    </div>
+/* ---------- 現場簽發 ---------- */
+const NF=['c-name','c-dob','c-ph','c-rg','c-g'];
+function resetNew(){st.nc=null;$('new-h').textContent='必須先感應【全新空白憑證】，方可解鎖資料輸入。';$('new-h').style.borderColor='var(--bad)';$('new-l').textContent='目前狀態：未讀取卡片';NF.forEach(i=>{$(i).value=i==='c-g'?'男':'';$(i).disabled=true});$('save').disabled=true}
+async function newSwipe(id){if(st.nc)return;if(await getId(id))return say('此憑證號碼已註冊。');st.nc=id;$('new-h').textContent='空白憑證已鎖定，請輸入資料';$('new-h').style.borderColor='var(--ok)';$('new-l').textContent='已綁定憑證號碼: '+id;NF.forEach(i=>$(i).disabled=false);$('save').disabled=false;$('c-name').focus()}
+async function saveNew(){
+ const name=$('c-name').value.trim(),dob=$('c-dob').value,phone=$('c-ph').value.trim(),region=$('c-rg').value.trim(),gender=$('c-g').value;
+ if(!name||!dob||!phone||!region)return say('請完整填寫所有欄位。');if(!/^[0-9+\- ]{6,15}$/.test(phone))return say('電話格式不正確。');
+ const sc=await newSmart(),id=st.nc,u={};u['identities/'+id]={card_id:id,smart_code:sc,name,dob,phone,region,gender,...fresh()};u['smartIndex/'+sc]=id;
+ await database.ref().update(u);await audit('ISSUE_NEW',`${sc} ${id}`);resetNew();say(`簽發完成！\n實體憑證號碼: ${id}\n智能編號: ${sc}`)}
 
-    <!-- 自訂提示框 -->
-    <div id="custom-alert-modal" class="custom-modal-overlay">
-        <div class="custom-modal-box">
-            <div id="custom-alert-text" class="custom-modal-text"></div>
-            <div class="custom-modal-actions">
-                <button id="custom-btn-confirm" class="custom-modal-btn" onclick="closeCustomModal(true)">確認</button>
-                <button id="custom-btn-cancel" class="custom-modal-btn btn-cancel" style="display:none;" onclick="closeCustomModal(false)">取消</button>
-            </div>
-        </div>
-    </div>
+/* ---------- 廣播 ---------- */
+async function sendBc(){const t=$('bc-t').value.trim();if(!t)return say('請輸入廣播內容！');const m=Number($('bc-d').value);
+ await database.ref('/broadcast').set({text:t,updated_at:Date.now(),expires_at:m?Date.now()+m*6e4:null});await audit('BROADCAST',t.slice(0,60));say('✅ 廣播已發送。')}
+async function clearBc(){await database.ref('/broadcast').remove();$('bc-t').value='';await audit('BROADCAST_CLEAR','');say('✅ 廣播已清除。')}
 
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyD42CHramMOT5yu6d0WhkMFs_5ZwQiPvPI",
-            authDomain: "ks11-a4274.firebaseapp.com",
-            databaseURL: "https://ks11-a4274-default-rtdb.firebaseio.com",
-            projectId: "ks11-a4274"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+/* ---------- 人員紀錄與注銷 ---------- */
+let people=[];
+async function loadList(){people=await getAll();drawList()}
+function drawList(){const q=$('q').value.trim().toLowerCase(),tb=$('pt').querySelector('tbody'),l=people.filter(r=>!q||[r.card_id,r.smart_code,r.name,r.region].join(' ').toLowerCase().includes(q));
+ tb.innerHTML=l.length?'':'<tr><td colspan="5" class="c">無紀錄</td></tr>';
+ l.forEach(r=>{const tr=document.createElement('tr');if(st.row&&st.row.card_id===r.card_id)tr.className='sel';tr.innerHTML=`<td>${esc(r.card_id)}</td><td>${esc(r.smart_code)}</td><td><b>${esc(r.name)}</b></td><td>${esc(r.phone||'--')}</td><td>${esc(r.region)}</td>`;tr.onclick=()=>{st.row=r;drawList()};tb.appendChild(tr)})}
+$('q').oninput=drawList;
+function resetCx(){st.cx=null;st.row=null;$('cx-h').hidden=true}
+function reqCancel(){if(!st.row)return say('請先自列表選取欲注銷之人員。');st.cx=st.row.card_id;$('cx-h').hidden=false;$('cx-h').textContent=`即將注銷 ${st.row.name}。請感應憑證 [${st.cx}] 以確認！`}
+async function cxSwipe(id){if(!st.cx||id!==st.cx){resetCx();drawList();return say('操作失敗：未選取人員或感應之憑證不符。')}
+ const r=st.row,u={};u['identities/'+id]=null;u['smartIndex/'+r.smart_code]=null;await database.ref().update(u);await audit('CANCEL',`${r.smart_code} ${id}`);resetCx();await loadList();say('該紀錄已自系統中注銷。')}
 
-        // 移除了 admin_card 相關的資料庫調用
-        const DB = {
-            getAllIdentities: async () => { const snap = await database.ref('/identities').once('value'); return snap.val() ? Object.values(snap.val()) : []; },
-            getIdentity: async (id) => (await database.ref(`/identities/${id}`).once('value')).val(),
-            saveIdentity: async (data) => await database.ref(`/identities/${data.card_id}`).set(data),
-            removeIdentity: async (id) => await database.ref(`/identities/${id}`).remove(),
-            getApplications: async () => { const snap = await database.ref('/applications').once('value'); return snap.val() ? Object.values(snap.val()) : []; },
-            updateAppStatus: async (appId, status, timestamp) => { await database.ref(`/applications/${appId}`).update({ status: status, approved_at: timestamp }); },
-            setBroadcast: async (text) => await database.ref('/broadcast').set({ text: text, updated_at: Date.now() }),
-            clearBroadcast: async () => await database.ref('/broadcast').remove()
-        };
+/* ---------- 審計日誌 (雜湊鏈驗證) ---------- */
+async function loadAudit(){
+ const l=Object.values((await database.ref('/audit').orderByKey().limitToLast(50).once('value')).val()||{});let ok=true;
+ for(let i=0;i<l.length;i++){const e=l[i];if(await sha(e.prev+e.ts+e.actor+e.act+e.detail)!==e.hash||(i>0&&e.prev!==l[i-1].hash))ok=false}
+ const s=$('aud-s');s.textContent=ok?`✅ 日誌雜湊鏈完整（最近 ${l.length} 筆）`:'❌ 偵測到日誌被篡改或缺漏！';s.style.borderColor=ok?'var(--ok)':'var(--bad)';
+ $('at').querySelector('tbody').innerHTML=l.reverse().map(e=>`<tr><td>${esc(new Date(e.ts).toLocaleString('zh-HK'))}</td><td>${esc(e.actor)}</td><td>${esc(e.act)}</td><td>${esc(e.detail)}</td></tr>`).join('')||'<tr><td colspan="4" class="c">暫無日誌</td></tr>'}
 
-        const VALIDITY_MINUTES = 10;
-        let isAdminModalOpen = false;
-        let currentActiveTab = 'tab-requests';
-        let rfidBuffer = "";
-        let state = { selectedAppForIssue: null, replaceOldCard: null, createNewCard: null, pendingCancelCard: null, selectedTableRow: null };
-        let autoRefreshInterval = null;
-        let modalCallback = null;
-
-        const generateSmartCode = () => String.fromCharCode(65 + Math.floor(Math.random() * 26)) + Math.floor(1000 + Math.random() * 9000);
-
-        function showCustomAlert(msg, onConfirm) {
-            document.getElementById('custom-alert-text').innerText = msg;
-            document.getElementById('custom-btn-cancel').style.display = 'none';
-            document.getElementById('custom-btn-confirm').innerText = '確認';
-            modalCallback = onConfirm || null;
-            document.getElementById('custom-alert-modal').style.display = 'flex';
-        }
-
-        function showCustomConfirm(msg, onConfirm) {
-            document.getElementById('custom-alert-text').innerText = msg;
-            document.getElementById('custom-btn-cancel').style.display = 'block';
-            document.getElementById('custom-btn-confirm').innerText = '確認';
-            modalCallback = onConfirm || null;
-            document.getElementById('custom-alert-modal').style.display = 'flex';
-        }
-
-        function closeCustomModal(isConfirmed) {
-            document.getElementById('custom-alert-modal').style.display = 'none';
-            if (modalCallback) { const cb = modalCallback; modalCallback = null; cb(isConfirmed); }
-        }
-
-        async function switchTab(e, tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            e.currentTarget.classList.add('active');
-            currentActiveTab = tabId;
-            resetAllAdminTabs();
-            if (tabId === 'tab-requests') await loadRequestsTable();
-            if (tabId === 'tab-list') await loadPersonnelTable();
-        }
-
-        document.addEventListener('keydown', async (e) => {
-            if (e.key === 'Enter') {
-                const cardId = rfidBuffer.trim();
-                rfidBuffer = "";
-                if (cardId.length === 10 && !isNaN(cardId)) {
-                    await processSwipe(cardId);
-                } else if (cardId.length > 0) {
-                    showCustomAlert(`系統警告：感應資料格式無效 [${cardId}]`);
-                }
-            } else if (/^\d$/.test(e.key)) {
-                rfidBuffer += e.key;
-                if (rfidBuffer.length > 20) rfidBuffer = rfidBuffer.substring(rfidBuffer.length - 10);
-            } else { rfidBuffer = ""; }
-        });
-
-        // 取消了需要讀取管理員卡的邏輯
-        async function processSwipe(cardId) {
-            try {
-                if (isAdminModalOpen) await handleAdminSwipe(cardId);
-                else await handleMainSwipe(cardId);
-            } catch (err) { console.error("系統連線錯誤:", err); }
-        }
-
-        async function handleMainSwipe(cardId) {
-            const record = await DB.getIdentity(cardId);
-            if (!record) {
-                updateMainDisplay(cardId, "--", "未知的憑證", "--", "--", "--", "--", "未於系統註冊", "var(--gov-danger)", "#ffffff", "驗證失敗：未註冊", "此憑證未在資料庫中找到匹配紀錄。");
-                return;
-            }
-            const diffSecs = Math.floor((new Date(new Date(record.issue_time).getTime() + VALIDITY_MINUTES * 60000) - new Date()) / 1000);
-            if (diffSecs > 0) {
-                updateMainDisplay(record.card_id, record.smart_code, record.name, record.gender, record.dob, record.phone || "未提供", record.region, `狀態有效 (剩餘 ${Math.floor(diffSecs / 60)}分${diffSecs % 60}秒)`, "var(--gov-success)", "#ffffff", "驗證通過：身份有效", `系統紀錄匹配，持證人：${record.name}`);
-            } else {
-                updateMainDisplay(record.card_id, record.smart_code, record.name, record.gender, record.dob, record.phone || "未提供", record.region, "憑證已過期", "var(--gov-warning)", "#ffffff", "警告：憑證已逾期", `請指導市民進行換證手續。`);
-            }
-        }
-
-        function updateMainDisplay(id, sc, name, gender, dob, phone, region, stat, bg, fg, msg, desc) {
-            document.getElementById('val-cardId').innerText = id; document.getElementById('val-smartCode').innerText = sc;
-            document.getElementById('val-name').innerText = name; document.getElementById('val-gender').innerText = gender;
-            document.getElementById('val-dob').innerText = dob; document.getElementById('val-phone').innerText = phone;
-            document.getElementById('val-region').innerText = region;
-            document.getElementById('val-status').innerText = stat;
-            const banner = document.getElementById('status-banner'); banner.style.backgroundColor = bg; banner.style.color = fg; banner.innerText = msg;
-            document.getElementById('status-detail').innerText = desc;
-        }
-
-        async function openAdminModal() { 
-            document.getElementById('admin-modal').style.display = 'flex'; 
-            isAdminModalOpen = true; 
-            resetAllAdminTabs(); 
-            await loadRequestsTable();
-            if (!autoRefreshInterval) {
-                autoRefreshInterval = setInterval(async () => {
-                    if (isAdminModalOpen && currentActiveTab === 'tab-requests') {
-                        await loadRequestsTable();
-                    }
-                }, 5000);
-            }
-        }
-
-        function closeAdminModal() { 
-            document.getElementById('admin-modal').style.display = 'none'; 
-            isAdminModalOpen = false;
-            if (autoRefreshInterval) { clearInterval(autoRefreshInterval); autoRefreshInterval = null; }
-        }
-
-        async function handleAdminSwipe(cardId) {
-            if (currentActiveTab === 'tab-requests') await processAppIssueSwipe(cardId);
-            else if (currentActiveTab === 'tab-replace') await processReplaceSwipe(cardId);
-            else if (currentActiveTab === 'tab-create') await processCreateSwipe(cardId);
-            else if (currentActiveTab === 'tab-list') await processCancelSwipe(cardId);
-        }
-
-        async function loadRequestsTable() {
-            const tbody = document.querySelector('#requests-table tbody'); 
-            const apps = await DB.getApplications();
-            const now = Date.now();
-
-            const visibleApps = apps.filter(a => {
-                if (a.status === 'APPROVED') {
-                    const approvedTime = a.approved_at || 0;
-                    return (now - approvedTime) < 60000;
-                }
-                return true;
-            });
-
-            tbody.innerHTML = '';
-            if (visibleApps.length === 0) return tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#888;">目前無待處理或有效時間內的換領申請</td></tr>';
-            
-            visibleApps.forEach(a => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `<td>換領憑證</td><td><strong>${a.name}</strong></td><td>${a.phone || '--'}</td><td>換證: ${a.reason || '--'}</td><td>${a.status === 'PENDING' ? '<span class="tag tag-pending">等待簽發</span>' : '<span class="tag tag-approved">已完成 (即將隱藏)</span>'}</td>`;
-                tr.onclick = () => { 
-                    if (a.status === 'APPROVED') return showCustomAlert("此申請已完成處理。"); 
-                    document.querySelectorAll('#requests-table tr').forEach(r => r.classList.remove('selected')); 
-                    tr.classList.add('selected'); 
-                    state.selectedAppForIssue = a; 
-                    document.getElementById('pending-hint').innerHTML = `系統操作：已選取申請人 <strong>${a.name}</strong>，請感應空白憑證完成簽發程序。`; 
-                };
-                tbody.appendChild(tr);
-            });
-        }
-        
-        async function processAppIssueSwipe(cardId) {
-            if (!state.selectedAppForIssue) return showCustomAlert("系統提示：請先自列表中選取一項申請。");
-            const app = state.selectedAppForIssue;
-            let oldData = await DB.getIdentity(app.oldCardId) || (await DB.getAllIdentities()).find(i => i.smart_code === app.oldCardId);
-            
-            if (!oldData) return showCustomAlert("錯誤：原系統中未找到該申請人的舊憑證紀錄。");
-            
-            const smartCode = oldData.smart_code;
-            await DB.removeIdentity(oldData.card_id);
-            
-            await DB.saveIdentity({ 
-                card_id: cardId, 
-                smart_code: smartCode, 
-                name: app.name, 
-                dob: oldData.dob, 
-                gender: oldData.gender, 
-                phone: app.phone,
-                region: oldData.region,
-                issue_time: new Date().toISOString() 
-            });
-            
-            await DB.updateAppStatus(app.id, 'APPROVED', Date.now());
-            showCustomAlert(`手續完成！\n實體憑證號碼: [${cardId}]\n智能編號: ${smartCode}`);
-            state.selectedAppForIssue = null; 
-            document.getElementById('pending-hint').innerText = "操作指引：請於列表點選待處理申請，然後將空白 NFC 憑證置於感應區進行簽發。";
-            await loadRequestsTable();
-        }
-
-        function resetReplaceTab() { state.replaceOldCard = null; document.getElementById('replace-status').innerText = "步驟 1：請感應【原有舊憑證】以讀取資料"; document.getElementById('replace-info').innerText = "系統等待讀取舊憑證..."; }
-        
-        async function processReplaceSwipe(cardId) {
-            if (!state.replaceOldCard) {
-                const record = await DB.getIdentity(cardId);
-                if (!record) return showCustomAlert("系統錯誤：資料庫中未尋獲此憑證紀錄。");
-                state.replaceOldCard = cardId; 
-                document.getElementById('replace-status').innerText = "步驟 2：請感應【全新空白憑證】以移轉資料"; 
-                document.getElementById('replace-info').innerHTML = `舊戶口已鎖定：<strong>${record.name}</strong>`;
-            } else {
-                if (cardId === state.replaceOldCard) return showCustomAlert("操作無效：新舊憑證不可為同一張。");
-                if (await DB.getIdentity(cardId)) return showCustomAlert("操作無效：感應之新卡已被註冊使用。");
-                const oldData = await DB.getIdentity(state.replaceOldCard);
-                await DB.removeIdentity(state.replaceOldCard);
-                await DB.saveIdentity({ ...oldData, card_id: cardId, issue_time: new Date().toISOString() });
-                showCustomAlert(`換領手續完成！\n新憑證號碼: ${cardId}`); 
-                resetReplaceTab();
-            }
-        }
-
-        function resetCreateTab() { state.createNewCard = null; document.getElementById('create-status').innerText = "安全性限制：必須先感應【全新空白憑證】，系統方可解鎖下方資料輸入區域。"; document.getElementById('create-card-lbl').innerText = "目前狀態：未讀取卡片"; ['c-name', 'c-dob', 'c-phone', 'c-region', 'c-gender'].forEach(id => { document.getElementById(id).value = ''; document.getElementById(id).disabled = true; }); document.getElementById('btn-save-new').disabled = true; }
-        
-        async function processCreateSwipe(cardId) {
-            if (state.createNewCard) return;
-            if (await DB.getIdentity(cardId)) return showCustomAlert("系統錯誤：此憑證號碼已註冊。");
-            state.createNewCard = cardId; 
-            document.getElementById('create-status').innerText = "系統許可：空白憑證已鎖定，請輸入資料"; 
-            document.getElementById('create-status').style.borderLeftColor = "var(--gov-success)";
-            document.getElementById('create-card-lbl').innerText = `已綁定憑證號碼: ${cardId}`;
-            ['c-name', 'c-dob', 'c-phone', 'c-region', 'c-gender'].forEach(id => document.getElementById(id).disabled = false); 
-            document.getElementById('btn-save-new').disabled = false;
-        }
-        
-        async function saveNewIdentity() {
-            const name = document.getElementById('c-name').value.trim(), dob = document.getElementById('c-dob').value, phone = document.getElementById('c-phone').value.trim(), region = document.getElementById('c-region').value.trim(), gender = document.getElementById('c-gender').value;
-            if (!name || !dob || !region || !phone) return showCustomAlert("請完整填寫所有欄位。");
-            const smartCode = generateSmartCode();
-            await DB.saveIdentity({ card_id: state.createNewCard, smart_code: smartCode, name, dob, phone, region, gender, issue_time: new Date().toISOString() });
-            showCustomAlert(`簽發手續完成！\n實體憑證號碼: ${state.createNewCard}\n智能編號: ${smartCode}`); 
-            resetCreateTab();
-            document.getElementById('create-status').style.borderLeftColor = "var(--gov-danger)";
-        }
-
-        async function sendBroadcast() {
-            const text = document.getElementById('broadcast-msg-input').value.trim();
-            if (!text) return showCustomAlert("請輸入廣播內容！");
-            await DB.setBroadcast(text);
-            showCustomAlert("✅ 全局廣播已成功發送！");
-        }
-
-        async function clearBroadcast() {
-            await DB.clearBroadcast();
-            document.getElementById('broadcast-msg-input').value = "";
-            showCustomAlert("✅ 全局廣播已清除。");
-        }
-
-        function resetCancelTab() { state.pendingCancelCard = null; state.selectedTableRow = null; const statusDiv = document.getElementById('cancel-status'); statusDiv.innerText = ""; statusDiv.style.display = "none"; }
-        
-        async function loadPersonnelTable() {
-            const tbody = document.querySelector('#personnel-table tbody'); tbody.innerHTML = '';
-            const records = await DB.getAllIdentities();
-            if (records.length === 0) return tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#888;">資料庫目前無紀錄</td></tr>';
-            records.forEach(rec => {
-                const tr = document.createElement('tr'); tr.innerHTML = `<td>${rec.card_id}</td><td>${rec.smart_code}</td><td><strong>${rec.name}</strong></td><td>${rec.phone || '--'}</td><td>${rec.region}</td>`;
-                tr.onclick = () => { document.querySelectorAll('#personnel-table tr').forEach(r => r.classList.remove('selected')); tr.classList.add('selected'); state.selectedTableRow = rec; };
-                tbody.appendChild(tr);
-            });
-        }
-        
-        function requestCancel() { 
-            if (!state.selectedTableRow) return showCustomAlert("系統提示：請自列表中選取欲注銷之人員。"); 
-            state.pendingCancelCard = state.selectedTableRow.card_id; 
-            const statusDiv = document.getElementById('cancel-status');
-            statusDiv.style.display = "block";
-            statusDiv.innerHTML = `系統警告：即將注銷 <strong>${state.selectedTableRow.name}</strong>。請感應憑證 [${state.pendingCancelCard}] 以確認執行此操作！`; 
-        }
-        
-        async function processCancelSwipe(cardId) { 
-            if (cardId === state.pendingCancelCard) { 
-                await DB.removeIdentity(cardId); 
-                showCustomAlert("操作成功：該紀錄已自系統中注銷。"); 
-                resetCancelTab(); 
-                await loadPersonnelTable(); 
-            } else { 
-                showCustomAlert("操作失敗：感應之憑證號碼與選取紀錄不符。"); 
-                resetCancelTab(); 
-            } 
-        }
-
-        function resetAllAdminTabs() { resetReplaceTab(); resetCreateTab(); resetCancelTab(); }
-    </script>
-</body>
-</html>
+function resetAll(){resetRep();resetNew();resetCx()}
+</script></body></html>
